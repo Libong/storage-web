@@ -76,6 +76,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatSize } from '@/utils/format'
+import {isDev} from "@/config/env/env.ts";
 
 interface BucketItem {
   id: string
@@ -308,24 +309,40 @@ const handleFileUpload = async (event: Event) => {
   if (!files || files.length === 0) return
 
   const file = files[0]
-  const newItem: BucketItem = {
-    id: `file-${Date.now()}`,
-    name: file.name,
-    size: file.size,
-    modifiedTime: new Date().toISOString().split('T')[0],
-    isFolder: false,
-    type: file.name.split('.').pop()
-  }
+  
+  try {
+    if (isDev) {
+      // 使用模拟数据
+      const newItem: BucketItem = {
+        id: `file-${Date.now()}`,
+        name: file.name,
+        size: file.size,
+        modifiedTime: new Date().toISOString().split('T')[0],
+        isFolder: false,
+        type: file.name.split('.').pop()
+      }
 
-  // 模拟上传并添加到当前路径
-  const pathKey = currentPath.value.length === 0 ? 'root' : `root/${currentPath.value.join('/')}`
-  if (!mockData[pathKey]) {
-    mockData[pathKey] = []
-  }
-  mockData[pathKey].push(newItem)
-  loadContent(currentPath.value) // 确保刷新当前目录
+      const pathKey = currentPath.value.length === 0 ? 'root' : `root/${currentPath.value.join('/')}`
+      if (!mockData[pathKey]) {
+        mockData[pathKey] = []
+      }
+      mockData[pathKey].push(newItem)
+      loadContent(currentPath.value)
+    } else {
+      // 实际的API调用
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('path', currentPath.value.join('/'))
+      
+      // TODO: 调用实际的上传API
+      // const response = await api.uploadFile(props.bucketId, formData)
+      // await loadContent(currentPath.value)
+    }
 
-  window.$message.success(`文件 "${file.name}" 上传成功`)
+    window.$message.success(`文件 "${file.name}" 上传成功`)
+  } catch (error) {
+    window.$message.error('文件上传失败')
+  }
 }
 
 const getItemIcon = (item: BucketItem) => {
