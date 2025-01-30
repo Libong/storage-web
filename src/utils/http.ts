@@ -77,16 +77,16 @@ function handleAuthenticationError(redirectPath: string) {
 }
 
 interface IHttp {
-    get(url: string, auth: boolean, param?: unknown): Promise<IApiResponse>;
+    get(url: string, auth: boolean, param?: unknown, customUrlPrefix?: string): Promise<IApiResponse>;
 
-    post(url: string, auth: boolean, data?: unknown): Promise<IApiResponse>;
+    post(url: string, auth: boolean, data?: unknown, customUrlPrefix?: string): Promise<IApiResponse>;
 
     filePost(url: string, auth: boolean, data?: unknown, param?: unknown): Promise<IApiResponse>;
 }
 
 const http: IHttp = {
-    async get(url, auth, params) {
-        const axiosInstance = createAxiosInstance(auth);
+    async get(url, auth, params, customUrlPrefix) {
+        const axiosInstance = createAxiosInstance(auth, undefined, customUrlPrefix);
         try {
             const response = await axiosInstance.get(url, {params});
             return response.data;
@@ -95,8 +95,8 @@ const http: IHttp = {
         }
     },
 
-    async post(url, auth, data) {
-        const axiosInstance = createAxiosInstance(auth);
+    async post(url, auth, data, customUrlPrefix) {
+        const axiosInstance = createAxiosInstance(auth, undefined, customUrlPrefix);
         try {
             const response = await axiosInstance.post(url, toSnakeCase(data));
             return response.data;

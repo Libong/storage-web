@@ -109,9 +109,11 @@ message DeleteBucketReq{
 message Bucket{
   string name = 1;
   double usage = 2; //用量
-  uint32 Object_cnt = 3; //对象数
+  uint32 object_cnt = 3; //对象数
   int64 establish_at = 4; //创建时间
   string bucket_id = 6;
+  uint32 access_policy = 7; //访问策略 1公有 2私有 3自定义
+  int64 last_modified_at = 8; //上次更新时间
 }
 message SearchBucketsPageReq{
   string fuzzy_name = 1;
@@ -133,7 +135,7 @@ message BucketByIdResp{
   string access_rule = 4; //访问规则
   string bucket_id = 5;
   repeated BucketAccountDetail list = 6;
-  uint32 Object_cnt = 7; //对象数
+  uint32 object_cnt = 7; //对象数
   int64 establish_at = 8; //创建时间
 }
 message Object {

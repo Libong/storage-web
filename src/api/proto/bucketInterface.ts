@@ -1,141 +1,120 @@
 import http from "@/utils/http";
 import { toCamelCaseObject, toSnakeCase } from "@/utils/tool";
 
-// 基础类型定义
-export interface Meta {
-    id: string;
-    name: string;
+// 基础消息类型定义
+export interface IBucketAccount {
+    accountId: string;
+    accessMode: number; // 访问权限 1只读 2只写 3读写
 }
 
-// Bucket类型定义
+export interface IBucketAccountDetail {
+    accountId: string;
+    accountName: string;
+    accessMode: number; // 访问权限 1只读 2只写 3读写
+    avatar: string;
+}
+
 export interface IBucket {
-    id: string;
     name: string;
-    type: 'private' | 'public';
-    description?: string;
+    usage: number;
+    objectCnt: number;
+    establishAt: number;
+    bucketId: string;
+    accessPolicy: number; // 访问策略 1公有 2私有 3自定义
+    lastModifiedAt: number;
+}
+
+export interface IObject {
+    name: string;
+    lastModifyAt: number;
     size: number;
-    folderCount: number;
-    fileCount: number;
-    createTime: string;
-    lastModified: string;
-}
-
-// 创建存储空间请求
-export interface ICreateBucketReq {
-    name: string;
-    type: 'private' | 'public';
-    description?: string;
-}
-
-// 创建存储空间响应
-export interface ICreateBucketResp {
-    bucketId: string;
-}
-
-// 获取存储空间列表响应
-export interface IListBucketsResp {
-    buckets: IBucket[];
-    total: number;
-}
-
-// 获取存储空间详情响应
-export interface IBucketDetailResp extends IBucket {
-    owner: Meta;
-    permissions: string[];
-}
-
-// 更新存储空间请求
-export interface IUpdateBucketReq {
-    bucketId: string;
-    type?: 'private' | 'public';
-    description?: string;
-}
-
-// 文件项类型
-export interface IFileItem {
-    id: string;
-    name: string;
-    size: number;
-    type: string;
-    isFolder: boolean;
-    modifiedTime: string;
-    path: string;
-}
-
-// 获取文件列表请求
-export interface IListFilesReq {
-    bucketId: string;
-    path: string;
-    pageSize?: number;
-    pageToken?: string;
-}
-
-// 获取文件列表响应
-export interface IListFilesResp {
-    items: IFileItem[];
-    nextPageToken?: string;
-}
-
-// 上传文件请求
-export interface IUploadFileReq {
-    bucketId: string;
-    path: string;
-    file: File;
-}
-
-// 上传文件响应
-export interface IUploadFileResp {
-    fileId: string;
+    isDir: boolean;
     url: string;
 }
 
-// 创建文件夹请求
-export interface ICreateFolderReq {
-    bucketId: string;
-    path: string;
+// 请求响应类型定义
+export interface IAddBucketReq {
     name: string;
 }
 
-// 删除文件请求
-export interface IDeleteFileReq {
+export interface IUpdateBucketReq {
+    accessPolicy: number;
+    accessRule: string;
     bucketId: string;
+    bucketAccount: IBucketAccount;
+}
+
+export interface IDeleteBucketReq {
+    bucketId: string;
+}
+
+export interface ISearchBucketsPageReq {
+    fuzzyName?: string;
+    pageNum?: number;
+    pageSize?: number;
+}
+
+export interface ISearchBucketsPageResp {
+    list: IBucket[];
+    total: number;
+}
+
+export interface IBucketByIdReq {
+    bucketId: string;
+}
+
+export interface IBucketByIdResp {
+    name: string;
+    usage: number;
+    accessPolicy: number;
+    accessRule: string;
+    bucketId: string;
+    list: IBucketAccountDetail[];
+    objectCnt: number;
+    establishAt: number;
+}
+
+export interface IBrowseBucketObjectsReq {
     path: string;
-    isFolder?: boolean;
+}
+
+export interface IBrowseBucketObjectsResp {
+    list: IObject[];
+}
+
+export interface IDeleteObjectReq {
+    path: string;
+}
+
+export interface IShareBucketObjectUrlReq {
+    expireType: number; // 1.1小时 2.当天 3.永久有效
+    path: string;
+}
+
+export interface IShareBucketObjectUrlResp {
+    url: string;
+}
+
+export interface IDeleteBucketAccountRelReq {
+    bucketId: string;
+    accountId: string;
+}
+
+// URL过期类型枚举
+export enum UrlExpireType {
+    Unknown = 0,
+    Hour = 1,
+    Day = 2,
+    Forever = 3
 }
 
 // 接口实现
-export function createBucketInterface(req: ICreateBucketReq): Promise<ICreateBucketResp> {
+export function addBucketInterface(req: IAddBucketReq): Promise<void> {
     return new Promise((resolve, reject) => {
         http
-            .post("/bucket/create", true, toSnakeCase(req))
-            .then((res) => {
-                resolve(toCamelCaseObject(res.data) as ICreateBucketResp);
-            })
-            .catch((err) => {
-                reject(err);
-            });
-    });
-}
-
-export function listBucketsInterface(): Promise<IListBucketsResp> {
-    return new Promise((resolve, reject) => {
-        http
-            .get("/bucket/list", true, null)
-            .then((res) => {
-                resolve(toCamelCaseObject(res.data) as IListBucketsResp);
-            })
-            .catch((err) => {
-                reject(err);
-            });
-    });
-}
-
-export function getBucketDetailInterface(bucketId: string): Promise<IBucketDetailResp> {
-    return new Promise((resolve, reject) => {
-        http
-            .get(`/bucket/${bucketId}/detail`, true, null)
-            .then((res) => {
-                resolve(toCamelCaseObject(res.data) as IBucketDetailResp);
+            .post("/bucket/add", true, toSnakeCase(req))
+            .then(() => {
+                resolve();
             })
             .catch((err) => {
                 reject(err);
@@ -156,10 +135,10 @@ export function updateBucketInterface(req: IUpdateBucketReq): Promise<void> {
     });
 }
 
-export function deleteBucketInterface(bucketId: string): Promise<void> {
+export function deleteBucketInterface(req: IDeleteBucketReq): Promise<void> {
     return new Promise((resolve, reject) => {
         http
-            .post(`/bucket/${bucketId}/delete`, true, null)
+            .post("/bucket/delete", true, toSnakeCase(req))
             .then(() => {
                 resolve();
             })
@@ -169,16 +148,12 @@ export function deleteBucketInterface(bucketId: string): Promise<void> {
     });
 }
 
-export function listFilesInterface(req: IListFilesReq): Promise<IListFilesResp> {
+export function searchBucketsPageInterface(req: ISearchBucketsPageReq): Promise<ISearchBucketsPageResp> {
     return new Promise((resolve, reject) => {
         http
-            .get(`/bucket/${req.bucketId}/files`, true, {
-                path: req.path,
-                page_size: req.pageSize,
-                page_token: req.pageToken
-            })
+            .get("/bucket/search/page", true, toSnakeCase(req))
             .then((res) => {
-                resolve(toCamelCaseObject(res.data) as IListFilesResp);
+                resolve(toCamelCaseObject(res.data) as ISearchBucketsPageResp);
             })
             .catch((err) => {
                 reject(err);
@@ -186,20 +161,12 @@ export function listFilesInterface(req: IListFilesReq): Promise<IListFilesResp> 
     });
 }
 
-export function uploadFileInterface(req: IUploadFileReq): Promise<IUploadFileResp> {
+export function bucketByIdInterface(req: IBucketByIdReq): Promise<IBucketByIdResp> {
     return new Promise((resolve, reject) => {
-        const formData = new FormData();
-        formData.append('file', req.file);
-        formData.append('path', req.path);
-
         http
-            .post(`/bucket/${req.bucketId}/upload`, true, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            })
+            .get("/bucket/get", true, toSnakeCase(req))
             .then((res) => {
-                resolve(toCamelCaseObject(res.data) as IUploadFileResp);
+                resolve(toCamelCaseObject(res.data) as IBucketByIdResp);
             })
             .catch((err) => {
                 reject(err);
@@ -207,10 +174,23 @@ export function uploadFileInterface(req: IUploadFileReq): Promise<IUploadFileRes
     });
 }
 
-export function createFolderInterface(req: ICreateFolderReq): Promise<void> {
+export function browseBucketObjectsInterface(req: IBrowseBucketObjectsReq): Promise<IBrowseBucketObjectsResp> {
     return new Promise((resolve, reject) => {
         http
-            .post(`/bucket/${req.bucketId}/folder/create`, true, toSnakeCase(req))
+            .get("/bucket/object/browse", true, toSnakeCase(req))
+            .then((res) => {
+                resolve(toCamelCaseObject(res.data) as IBrowseBucketObjectsResp);
+            })
+            .catch((err) => {
+                reject(err);
+            });
+    });
+}
+
+export function deleteObjectInterface(req: IDeleteObjectReq): Promise<void> {
+    return new Promise((resolve, reject) => {
+        http
+            .post("/bucket/object/delete", true, toSnakeCase(req))
             .then(() => {
                 resolve();
             })
@@ -220,10 +200,23 @@ export function createFolderInterface(req: ICreateFolderReq): Promise<void> {
     });
 }
 
-export function deleteFileInterface(req: IDeleteFileReq): Promise<void> {
+export function shareBucketObjectUrlInterface(req: IShareBucketObjectUrlReq): Promise<IShareBucketObjectUrlResp> {
     return new Promise((resolve, reject) => {
         http
-            .post(`/bucket/${req.bucketId}/file/delete`, true, toSnakeCase(req))
+            .post("/bucket/object/share", true, toSnakeCase(req))
+            .then((res) => {
+                resolve(toCamelCaseObject(res.data) as IShareBucketObjectUrlResp);
+            })
+            .catch((err) => {
+                reject(err);
+            });
+    });
+}
+
+export function deleteBucketAccountRelInterface(req: IDeleteBucketAccountRelReq): Promise<void> {
+    return new Promise((resolve, reject) => {
+        http
+            .post("/bucket/accountRel/delete", true, toSnakeCase(req))
             .then(() => {
                 resolve();
             })

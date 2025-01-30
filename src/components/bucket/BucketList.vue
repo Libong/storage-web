@@ -1,7 +1,12 @@
 <template>
   <div class="bucket-list">
     <div class="bucket-header">
-      <h2>我的存储空间</h2>
+      <div class="header-left">
+        <h2>我的存储空间</h2>
+        <button class="btn-refresh" @click="refreshBuckets" title="刷新">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
       <button class="btn-create" @click="showCreateDialog">
         <i class="fas fa-plus"></i> 新建存储空间
       </button>
@@ -88,6 +93,8 @@ import CreateBucketDialog from './CreateBucketDialog.vue'
 import BucketSettingsDialog from './BucketSettingsDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useRouter } from 'vue-router'
+import {listBucketsInterface, searchBucketsPageInterface} from "@/api/proto/bucketInterface.ts";
+import {timestamp2DateStr, toSecondOrMilli} from "@/utils/tool.ts";
 
 interface Bucket {
   id: string
@@ -268,6 +275,26 @@ const deleteConfirmMessage = computed(() => {
   if (!selectedBucket.value) return ''
   return `确定要删除存储空间 "${selectedBucket.value.name}" 吗？此操作不可恢复。`
 })
+
+const refreshBuckets = async () => {
+  try {
+    let resp = await searchBucketsPageInterface({});
+    resp.list.forEach((bucket)=>{
+      buckets.value.push({
+        createTime: timestamp2DateStr(toSecondOrMilli(bucket.establishAt,false)),
+        fileCount: bucket.objectCnt,
+        folderCount: 0,
+        id: bucket.bucketId,
+        lastModified: timestamp2DateStr(toSecondOrMilli(bucket.establishAt,false)),
+        name: bucket.name,
+        size: bucket.usage, description: undefined, type: undefined
+      })
+    })
+    window.$message.success('刷新成功')
+  } catch (error) {
+    window.$message.error('刷新失败')
+  }
+}
 
 // 初始化时获取列表
 // onMounted(() => {
@@ -535,5 +562,26 @@ const deleteConfirmMessage = computed(() => {
   .bucket-stats {
     height: 50%;
   }
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-refresh {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 0.5rem;
+  font-size: 1.1rem;
+  transition: all 0.3s;
+}
+
+.btn-refresh:hover {
+  color: var(--primary-color);
+  transform: rotate(180deg);
 }
 </style> 

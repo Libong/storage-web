@@ -2,37 +2,19 @@
   <div class="main-layout">
     <header class="header">
       <div class="logo">
-        <img :src="IMAGES.logo" alt="Anime Cloud" />
+        <img :src="IMAGES.logo" alt="Anime Cloud"/>
         <h1>Reborn Cloud</h1>
       </div>
-<!--      <nav class="nav-menu">-->
-<!--        <router-link to="/">首页</router-link>-->
-<!--        <router-link to="/buckets">我的存储</router-link>-->
-<!--        <router-link to="/help">帮助</router-link>-->
-<!--      </nav>-->
-      <div class="user-section">
-<!--        <SearchBar />-->
-        <UserAvatar v-if="isLoggedIn" />
-<!--        <template v-else>-->
-<!--          <router-link to="/login" class="btn-login">登录</router-link>-->
-<!--          <router-link to="/register" class="btn-register">注册</router-link>-->
-<!--        </template>-->
-      </div>
     </header>
-    
+
     <main class="main-content">
       <router-view></router-view>
     </main>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue'
-import { IMAGES } from '@/assets/images'
-import SearchBar from '@/components/common/SearchBar.vue'
-import UserAvatar from '@/components/common/UserAvatar.vue'
-
-const isLoggedIn = ref(false)
+<script lang="ts" setup>
+import {IMAGES} from '@/assets/images'
 </script>
 
 <style scoped>

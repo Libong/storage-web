@@ -52,4 +52,11 @@ export function toSecondOrMilli(timestamp: number, toSecond: boolean): number {
     }
     return timestamp;
 }
-
+export function timestamp2DateStr(timestamp: number): string {
+    if (timestamp == 0) {
+        return "";
+    }
+    const date = new Date(toSecondOrMilli(timestamp, false));
+    const formatTwoDigits = (number: number) => number.toString().padStart(2, '0');
+    return formatTwoDigits(date.getFullYear()) + '-' + formatTwoDigits(date.getMonth() + 1) + '-' + formatTwoDigits(date.getDate());
+}
