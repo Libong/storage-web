@@ -7,30 +7,33 @@
           <i class="fas fa-times"></i>
         </button>
       </div>
-      
+
       <div class="dialog-body">
         {{ message }}
       </div>
 
       <div class="dialog-actions">
         <button class="btn-cancel" @click="cancel">取消</button>
-        <button 
-          class="btn-confirm" 
-          :class="type"
-          @click="confirm"
-        >确认</button>
+        <button
+            :class="type"
+            class="btn-confirm"
+            @click="confirm"
+        >确认
+        </button>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-defineProps<{
-  visible: boolean
-  title: string
-  message: string
-  type?: 'warning' | 'danger' | 'info'
-}>()
+<script lang="ts" setup>
+export interface IConfirmDialogParam {
+  title: string;
+  message: string;
+  visible: boolean;
+  type: 'warning' | 'danger' | 'info'
+}
+
+defineProps<IConfirmDialogParam>()
 
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void

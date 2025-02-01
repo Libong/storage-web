@@ -1,5 +1,5 @@
 <template>
-  <div v-if="visible" class="dialog-overlay" @click="closeDialog">
+  <div v-if="props.visible" class="dialog-overlay" @click="closeDialog">
     <div class="dialog-content" @click.stop>
       <div class="dialog-header">
         <h3>新建存储空间</h3>
@@ -8,33 +8,33 @@
         </button>
       </div>
 
-      <form @submit.prevent="handleSubmit" class="bucket-form">
+      <form class="bucket-form" @submit.prevent="handleSubmit">
         <div class="form-item">
           <label>存储空间名称 <span class="required">*</span></label>
-          <input 
-            v-model="form.name"
-            type="text"
-            placeholder="请输入3-63个字符，仅支持小写字母、数字和短横线"
-            :class="{ 'error': errors.name }"
+          <input
+              v-model="form.name"
+              :class="{ 'error': errors.name }"
+              placeholder="请输入3-63个字符，仅支持小写字母、数字和短横线"
+              type="text"
           >
-          <span class="error-message" v-if="errors.name">{{ errors.name }}</span>
+          <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
         </div>
 
         <div class="form-item">
           <label>访问权限</label>
           <div class="radio-group">
             <label class="radio-label">
-              <input 
-                type="radio" 
-                v-model="form.type" 
-                value="private"
+              <input
+                  v-model="form.accessPolicy"
+                  :value="BucketAccessPolicy.Private"
+                  type="radio"
               > 私有
             </label>
             <label class="radio-label">
-              <input 
-                type="radio" 
-                v-model="form.type" 
-                value="public"
+              <input
+                  v-model="form.accessPolicy"
+                  :value="BucketAccessPolicy.Publish"
+                  type="radio"
               > 公开
             </label>
           </div>
@@ -42,16 +42,16 @@
 
         <div class="form-item">
           <label>描述</label>
-          <textarea 
-            v-model="form.description"
-            placeholder="请输入存储空间描述信息"
-            rows="3"
+          <textarea
+              v-model="form.desc"
+              placeholder="请输入存储空间描述信息"
+              rows="3"
           ></textarea>
         </div>
 
         <div class="form-actions">
-          <button type="button" class="btn-cancel" @click="closeDialog">取消</button>
-          <button type="submit" class="btn-submit" :disabled="isSubmitting">
+          <button class="btn-cancel" type="button" @click="closeDialog">取消</button>
+          <button :disabled="isSubmitting" class="btn-submit" type="submit">
             {{ isSubmitting ? '创建中...' : '创建' }}
           </button>
         </div>
@@ -60,9 +60,9 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, reactive } from 'vue'
-import type { Bucket } from '@/types/bucket'
+<script lang="ts" setup>
+import {reactive, ref} from 'vue'
+import {BucketAccessPolicy, IAddBucketReq} from "@/api/proto/bucketInterface.ts";
 
 const props = defineProps<{
   visible: boolean
@@ -70,13 +70,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
-  (e: 'created', bucket: Bucket): void
+  (e: 'add', data: IAddBucketReq, callback: () => void): void
 }>()
 
 const form = reactive({
   name: '',
-  type: 'private' as 'private' | 'public',
-  description: ''
+  accessPolicy: 0,
+  desc: ''
 })
 
 const errors = reactive({
@@ -105,60 +105,24 @@ const handleSubmit = async () => {
   if (!validateForm()) return
 
   isSubmitting.value = true
-  
-  try {
-    // TODO: 调用创建 bucket 的 API
-    // const response = await api.createBucket({
-    //   name: form.name,
-    //   type: form.type,
-    //   description: form.description
-    // })
-
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    const newBucket: Bucket = {
-      id: `bucket-${Date.now()}`,
-      name: form.name,
-      type: form.type,
-      description: form.description,
-      size: 0,
-      folderCount: 0,
-      fileCount: 0,
-      createTime: new Date().toISOString().split('T')[0],
-      lastModified: new Date().toISOString().split('T')[0]
-    }
-
-    emit('created', newBucket)
-    closeDialog()
-    
-    window.$message.success('存储空间创建成功')
-  } catch (error) {
-    // TODO: 根据错误类型显示不同的错误信息
-    // if (error.code === 'NAME_EXISTS') {
-    //   errors.name = '存储空间名称已存在'
-    // } else {
-    //   window.$message.error('创建失败，请重试')
-    // }
-    window.$message.error('创建失败，请重试')
-  } finally {
+  emit("add", {
+    name: form.name,
+    accessPolicy: form.accessPolicy,
+  }, () => {
     isSubmitting.value = false
-  }
+    closeDialog()
+    window.$message.success('存储空间创建成功')
+  })
 }
 
 const closeDialog = () => {
   emit('update:visible', false)
   // 重置表单
   form.name = ''
-  form.type = 'private'
-  form.description = ''
+  form.accessPolicy = 0
+  form.desc = ''
   errors.name = ''
 }
-
-// TODO: 可能需要的其他接口
-// - 检查名称是否可用
-// - 获取用户配额信息
-// - 获取可用区域列表
 </script>
 
 <style scoped>

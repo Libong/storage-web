@@ -3,18 +3,18 @@
     <div class="dialog-content" @click.stop>
       <div class="dialog-header">
         <h3>存储空间设置</h3>
-        <button class="close-btn" @click="closeDialog" :disabled="isSubmitting">
+        <button :disabled="isSubmitting" class="close-btn" @click="closeDialog">
           <i class="fas fa-times"></i>
         </button>
       </div>
 
-      <form @submit.prevent="handleSubmit" class="settings-form">
+      <form class="settings-form" @submit.prevent="handleSubmit">
         <div class="form-item">
           <label>存储空间名称</label>
-          <input 
-            v-model="form.name"
-            type="text"
-            disabled
+          <input
+              v-model="props.bucket.name"
+              disabled
+              type="text"
           >
         </div>
 
@@ -22,17 +22,17 @@
           <label>访问权限</label>
           <div class="radio-group">
             <label class="radio-label">
-              <input 
-                type="radio" 
-                v-model="form.type" 
-                value="private"
+              <input
+                  v-model="props.bucket.accessPolicy"
+                  :value="BucketAccessPolicy.Private"
+                  type="radio"
               > 私有
             </label>
             <label class="radio-label">
-              <input 
-                type="radio" 
-                v-model="form.type" 
-                value="public"
+              <input
+                  v-model="props.bucket.accessPolicy"
+                  :value="BucketAccessPolicy.Publish"
+                  type="radio"
               > 公开
             </label>
           </div>
@@ -40,24 +40,25 @@
 
         <div class="form-item">
           <label>描述</label>
-          <textarea 
-            v-model="form.description"
-            placeholder="请输入存储空间描述信息"
-            rows="3"
+          <textarea
+              v-model="props.bucket.desc"
+              placeholder="请输入存储空间描述信息"
+              rows="3"
           ></textarea>
         </div>
 
         <div class="form-actions">
-          <button 
-            type="button" 
-            class="btn-cancel" 
-            @click="closeDialog"
-            :disabled="isSubmitting"
-          >取消</button>
-          <button 
-            type="submit" 
-            class="btn-submit" 
-            :disabled="isSubmitting || isConfirming"
+          <button
+              :disabled="isSubmitting"
+              class="btn-cancel"
+              type="button"
+              @click="closeDialog"
+          >取消
+          </button>
+          <button
+              :disabled="isSubmitting"
+              class="btn-submit"
+              type="submit"
           >
             {{ isSubmitting ? '保存中...' : '保存' }}
           </button>
@@ -67,61 +68,46 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, reactive } from 'vue'
-import type { Bucket } from '@/types/bucket'
+<script lang="ts" setup>
+import {ref} from 'vue'
+import {BucketAccessPolicy, IBucketByIdResp} from "@/api/proto/bucketInterface.ts";
 
 const props = defineProps<{
   visible: boolean
-  bucket: Bucket
-  isConfirming?: boolean
+  bucket: IBucketByIdResp
 }>()
 
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
-  (e: 'updated', bucket: Bucket): void
+  (e: 'updated', callback: () => void): void
 }>()
 
-interface SettingsForm {
-  name: string
-  type: 'private' | 'public'
-  description: string
-}
-
-const form = reactive<SettingsForm>({
-  name: '',
-  type: 'private',
-  description: ''
-})
+// interface SettingsForm {
+//   name: string
+//   accessPolicy: number
+//   desc: string
+// }
+//
+// const form = reactive<SettingsForm>({
+//   name: '',
+//   accessPolicy: 0,
+//   desc: ''
+// })
 
 const isSubmitting = ref(false)
 
-// 监听 bucket 属性变化，更新表单
-if (props.bucket) {
-  form.name = props.bucket.name
-  form.type = props.bucket.type
-  form.description = props.bucket.description || ''
-}
+// // 监听 bucket 属性变化，更新表单
+// if (props.bucket) {
+//   form.name = props.bucket.name
+//   form.accessPolicy = props.bucket.accessPolicy
+//   form.desc = props.bucket.desc || ''
+// }
 
 const handleSubmit = async () => {
   isSubmitting.value = true
-  
-  try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    const updatedBucket: Bucket = {
-      ...props.bucket,
-      type: form.type,
-      description: form.description
-    }
-
-    emit('updated', updatedBucket)
-  } catch (error) {
-    window.$message.error('保存失败，请重试')
-  } finally {
+  emit("updated", () => {
     isSubmitting.value = false
-  }
+  })
 }
 
 const closeDialog = () => {

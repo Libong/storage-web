@@ -3,50 +3,51 @@
     <div class="bucket-header">
       <div class="header-left">
         <h2>我的存储空间</h2>
-        <button class="btn-refresh" @click="refreshBuckets" title="刷新">
+        <button class="btn-refresh" title="刷新" @click="refreshBuckets(true)">
           <i class="fas fa-sync-alt"></i>
         </button>
       </div>
-      <button class="btn-create" @click="showCreateDialog">
+      <button class="btn-create" @click="openCreateDialog">
         <i class="fas fa-plus"></i> 新建存储空间
       </button>
     </div>
-    
+
     <div class="buckets-grid">
-      <div v-for="bucket in buckets" 
-           :key="bucket.id" 
-           class="bucket-card"
-           :class="{ 'public': bucket.type === 'public' }">
+      <div v-for="bucket in buckets"
+           :key="bucket.bucketId"
+           :class="{ 'public': bucket.accessPolicy === BucketAccessPolicy.Publish }"
+           class="bucket-card">
         <div class="bucket-icon">
           <i class="fas fa-folder-open"></i>
-          <span class="bucket-type" :title="bucket.type === 'public' ? '公开访问' : '私有空间'">
-            <i v-if="bucket.type === 'public'" class="fas fa-users"></i>
+          <span :title="bucket.accessPolicy === BucketAccessPolicy.Publish ? '公开访问' : '私有空间'"
+                class="bucket-type">
+            <i v-if="bucket.accessPolicy === BucketAccessPolicy.Publish" class="fas fa-users"></i>
             <i v-else class="fas fa-shield-alt"></i>
           </span>
         </div>
         <div class="bucket-info">
           <h3>{{ bucket.name }}</h3>
-          <p class="bucket-desc">{{ bucket.description }}</p>
+          <p class="bucket-desc">{{ bucket.desc }}</p>
           <div class="bucket-stats">
-            <span><i class="fas fa-database"></i> {{ formatSize(bucket.size) }}</span>
-            <span><i class="fas fa-folder"></i> {{ bucket.folderCount }}</span>
-            <span><i class="fas fa-file"></i> {{ bucket.fileCount }}</span>
+            <span><i class="fas fa-database"></i> {{ bucket.usage ? formatSize(bucket.usage) : 0 }}</span>
+            <span><i class="fas fa-folder"></i> {{ 0 }}</span>
+            <span><i class="fas fa-file"></i> {{ bucket.objectCnt ? bucket.objectCnt : 0 }}</span>
           </div>
           <div class="bucket-dates">
-            <span>创建于: {{ bucket.createTime }}</span>
-            <span>最后修改: {{ bucket.lastModified }}</span>
+            <span>创建于: {{ timestamp2DateStr(bucket.establishAt) }}</span>
+            <span>最后修改: {{ bucket.lastModifiedAt ? timestamp2DateStr(bucket.lastModifiedAt) : "" }}</span>
           </div>
         </div>
         <div class="bucket-actions">
           <div class="secondary-actions">
-            <button @click="openSettings(bucket.id)" class="btn-settings" title="设置">
+            <button class="btn-settings" title="设置" @click="openSettings(bucket.bucketId)">
               <i class="fas fa-cog"></i>
             </button>
-            <button @click="deleteBucket(bucket.id)" class="btn-delete" title="删除">
+            <button class="btn-delete" title="删除" @click="deleteBucket(bucket.bucketId,bucket.name)">
               <i class="fas fa-trash-alt"></i>
             </button>
           </div>
-          <button @click="enterBucket(bucket.id)" class="btn-enter" title="进入存储空间">
+          <button class="btn-enter" title="进入存储空间" @click="enterBucket(bucket.bucketId)">
             <i class="fas fa-sign-in-alt"></i>
           </button>
         </div>
@@ -55,144 +56,74 @@
 
     <!-- 添加创建对话框 -->
     <CreateBucketDialog
-      v-model:visible="createDialogVisible"
-      @created="handleBucketCreated"
+        v-model:visible="createDialogVisible"
+        @add="handleBucketAdd"
     />
 
     <!-- 添加确认对话框 -->
     <ConfirmDialog
-      v-model:visible="deleteConfirmVisible"
-      title="删除存储空间"
-      :message="deleteConfirmMessage"
-      type="danger"
-      @confirm="confirmDelete"
-    />
-
-    <ConfirmDialog
-      v-model:visible="updateConfirmVisible"
-      title="更新设置"
-      message="确定要保存更改吗？"
-      type="info"
-      @confirm="confirmUpdate"
+        v-model:visible="confirmDialogParam.visible"
+        :message="confirmDialogParam.message"
+        :title="confirmDialogParam.title"
+        :type="confirmDialogParam.type"
+        @confirm="confirmCallback"
     />
 
     <BucketSettingsDialog
-      v-if="selectedBucket"
-      v-model:visible="settingsDialogVisible"
-      :bucket="selectedBucket"
-      :isConfirming="updateConfirmVisible"
-      @updated="handleBucketUpdated"
+        v-if="updateBucketData"
+        v-model:visible="settingsDialogVisible"
+        :bucket="updateBucketData"
+        @updated="handleBucketUpdated"
     />
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { formatSize } from '@/utils/format'
+<script lang="ts" setup>
+import {onMounted, ref, watch} from 'vue'
+import {formatSize} from '@/utils/format'
 import CreateBucketDialog from './CreateBucketDialog.vue'
 import BucketSettingsDialog from './BucketSettingsDialog.vue'
-import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import { useRouter } from 'vue-router'
-import {listBucketsInterface, searchBucketsPageInterface} from "@/api/proto/bucketInterface.ts";
-import {timestamp2DateStr, toSecondOrMilli} from "@/utils/tool.ts";
+import ConfirmDialog, {IConfirmDialogParam} from '@/components/common/ConfirmDialog.vue'
+import {useRouter} from 'vue-router'
+import {
+  addBucketInterface,
+  BucketAccessPolicy,
+  bucketByIdInterface,
+  deleteBucketInterface,
+  IAddBucketReq,
+  IBucket,
+  IBucketByIdResp,
+  searchBucketsPageInterface,
+  updateBucketInterface
+} from "@/api/proto/bucketInterface.ts";
+import {timestamp2DateStr} from "@/utils/tool.ts";
 
-interface Bucket {
-  id: string
-  name: string
-  size: number
-  folderCount: number
-  fileCount: number
-  createTime: string
-  lastModified: string
-  type: 'private' | 'public'
-  description?: string
-}
-
-// 模拟数据
-const buckets = ref<Bucket[]>([
-  {
-    id: 'bucket-001',
-    name: '个人文档',
-    size: 1024 * 1024 * 1024 * 2.5, // 2.5GB
-    folderCount: 15,
-    fileCount: 128,
-    createTime: '2024-01-15',
-    lastModified: '2024-03-10',
-    type: 'private',
-    description: '存储个人的重要文档和资料'
-  },
-  {
-    id: 'bucket-002',
-    name: '项目资源',
-    size: 1024 * 1024 * 1024 * 8, // 8GB
-    folderCount: 25,
-    fileCount: 356,
-    createTime: '2024-02-01',
-    lastModified: '2024-03-15',
-    type: 'private',
-    description: '工作项目相关的设计资源和文档'
-  },
-  {
-    id: 'bucket-003',
-    name: '照片备份',
-    size: 1024 * 1024 * 1024 * 15, // 15GB
-    folderCount: 48,
-    fileCount: 2451,
-    createTime: '2024-01-20',
-    lastModified: '2024-03-18',
-    type: 'private',
-    description: '手机和相机照片的自动备份'
-  },
-  {
-    id: 'bucket-004',
-    name: '公共资源',
-    size: 1024 * 1024 * 1024 * 1.2, // 1.2GB
-    folderCount: 8,
-    fileCount: 64,
-    createTime: '2024-02-15',
-    lastModified: '2024-03-12',
-    type: 'public',
-    description: '可公开访问的共享资源'
-  },
-  {
-    id: 'bucket-005',
-    name: '视频素材',
-    size: 1024 * 1024 * 1024 * 25, // 25GB
-    folderCount: 12,
-    fileCount: 186,
-    createTime: '2024-02-20',
-    lastModified: '2024-03-19',
-    type: 'private',
-    description: '视频创作的原始素材和成品'
-  }
-])
-
+onMounted(() => {
+  refreshBuckets(true);
+})
+//列表数据
+const buckets = ref<IBucket[]>([])
+//新增和修改的模态框
 const createDialogVisible = ref(false)
-const deleteConfirmVisible = ref(false)
-const updateConfirmVisible = ref(false)
 const settingsDialogVisible = ref(false)
-const selectedBucket = ref<Bucket | null>(null)
-const bucketToDelete = ref<string>('')
+//是否打开确认框
+const defaultConfirmDialogParam: IConfirmDialogParam = {
+  title: "",
+  message: "",
+  visible: false,
+  type: "info"
+}
+const confirmDialogParam = ref<IConfirmDialogParam>(defaultConfirmDialogParam)
+
+const updateBucketData = ref<IBucketByIdResp>({
+  accessPolicy: 0, accessRule: "", bucketId: "", desc: "", establishAt: 0, list: [], name: "", objectCnt: 0, usage: 0
+})
+const deleteBucketId = ref<string>('')
 
 const router = useRouter()
 
-const showCreateDialog = () => {
+const openCreateDialog = () => {
   createDialogVisible.value = true
-}
-
-const handleBucketCreated = (newBucket: Bucket) => {
-  buckets.value.unshift(newBucket)
-}
-
-// TODO: 从服务端获取 bucket 列表
-const fetchBuckets = async () => {
-  try {
-    // TODO: 调用 API 获取 bucket 列表
-    // const response = await api.getBuckets()
-    // buckets.value = response.data
-  } catch (error) {
-    window.$message.error('获取存储空间列表失败')
-  }
 }
 
 // TODO: 进入 bucket 时需要获取该 bucket 的详细信息和权限
@@ -206,100 +137,94 @@ const enterBucket = async (id: string) => {
   }
 }
 
-// TODO: 打开设置时需要获取 bucket 的配置信息
 const openSettings = async (id: string) => {
-  try {
-    // TODO: 调用 API 获取 bucket 配置
-    // const response = await api.getBucketSettings(id)
-    selectedBucket.value = buckets.value.find(b => b.id === id) || null
-    if (selectedBucket.value) {
-      settingsDialogVisible.value = true
+  updateBucketData.value = await bucketByIdInterface({bucketId: id})
+  settingsDialogVisible.value = true
+}
+
+const handleBucketUpdated = (callback: () => void) => {
+  if (confirmDialogParam.value.visible) return // 如果正在确认中，不处理新的更新
+  confirmDialogParam.value.message = "确定要保存更改吗？"
+  confirmDialogParam.value.title = "更新设置"
+  confirmDialogParam.value.visible = true
+  const stopWatch = watch(confirmDialogParam, (newValue) => {
+    if (!newValue.visible) {
+      // 执行回调函数
+      callback()
+      // 取消监听
+      stopWatch()
     }
-  } catch (error) {
-    window.$message.error('获取存储空间配置失败')
-  }
+  })
+}
+const handleBucketAdd = async (data: IAddBucketReq, callback: () => void) => {
+  await addBucketInterface(data);
+  callback();
+  refreshBuckets();
 }
 
-let updatedBucketData: Bucket | null = null
 
-const handleBucketUpdated = (bucket: Bucket) => {
-  if (updateConfirmVisible.value) return // 如果正在确认中，不处理新的更新
-  updatedBucketData = bucket
-  updateConfirmVisible.value = true
+const resetConfirmDialogParam = () => {
+  confirmDialogParam.value = {...defaultConfirmDialogParam}
 }
-
-const confirmUpdate = async () => {
-  if (updatedBucketData) {
+const confirmCallback = async () => {
+  if (deleteBucketId.value != "") {
     try {
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      const index = buckets.value.findIndex(b => b.id === updatedBucketData!.id)
-      if (index !== -1) {
-        buckets.value[index] = updatedBucketData
-      }
-      
-      updateConfirmVisible.value = false
-      settingsDialogVisible.value = false
-      window.$message.success('设置已保存')
-      updatedBucketData = null
+      await deleteBucketInterface({
+        bucketId: deleteBucketId.value,
+      })
+      window.$message.success('删除成功')
     } catch (error) {
-      updateConfirmVisible.value = false // 出错时也需要关闭确认框
-      window.$message.error('保存失败，请重试')
+      window.$message.error('删除失败')
+    } finally {
+      resetConfirmDialogParam()
+      await refreshBuckets();
+    }
+  } else {
+    try {
+      await updateBucketInterface({
+        accessPolicy: updateBucketData.value.accessPolicy,
+        accessRule: updateBucketData.value.accessRule,
+        bucketAccount: [],
+        bucketId: updateBucketData.value.bucketId,
+        desc: updateBucketData.value.desc
+      });
+      settingsDialogVisible.value = false
+      window.$message.success('更新成功')
+    } catch (error) {
+      window.$message.error(error)
+    } finally {
+      resetConfirmDialogParam()
+      await refreshBuckets();
     }
   }
 }
 
 // 删除相关方法
-const deleteBucket = (id: string) => {
-  selectedBucket.value = buckets.value.find(b => b.id === id) || null
-  if (selectedBucket.value) {
-    bucketToDelete.value = id
-    deleteConfirmVisible.value = true
-  }
+const deleteBucket = (id: string, name: string) => {
+  deleteBucketId.value = id
+  confirmDialogParam.value.message = `确定要删除存储空间 "${name}" 吗？此操作不可恢复,并且会删除所有子文件和文件夹内容`
+  confirmDialogParam.value.title = "删除存储空间"
+  confirmDialogParam.value.visible = true
 }
-
-const confirmDelete = async () => {
-  try {
-    // TODO: 调用 API 删除 bucket
-    // await api.deleteBucket(bucketToDelete.value)
-    buckets.value = buckets.value.filter(bucket => bucket.id !== bucketToDelete.value)
-    window.$message.success('删除成功')
-  } catch (error) {
-    window.$message.error('删除失败')
-  }
-}
-
-// 计算删除确认消息
-const deleteConfirmMessage = computed(() => {
-  if (!selectedBucket.value) return ''
-  return `确定要删除存储空间 "${selectedBucket.value.name}" 吗？此操作不可恢复。`
-})
-
-const refreshBuckets = async () => {
-  try {
-    let resp = await searchBucketsPageInterface({});
-    resp.list.forEach((bucket)=>{
-      buckets.value.push({
-        createTime: timestamp2DateStr(toSecondOrMilli(bucket.establishAt,false)),
-        fileCount: bucket.objectCnt,
-        folderCount: 0,
-        id: bucket.bucketId,
-        lastModified: timestamp2DateStr(toSecondOrMilli(bucket.establishAt,false)),
-        name: bucket.name,
-        size: bucket.usage, description: undefined, type: undefined
-      })
+const refreshBuckets = async (needNotice?: boolean) => {
+  let resp = await searchBucketsPageInterface({});
+  buckets.value = [];
+  resp.list.forEach((bucket) => {
+    buckets.value.push({
+      establishAt: bucket.establishAt,
+      objectCnt: bucket.objectCnt,
+      bucketId: bucket.bucketId,
+      lastModifiedAt: bucket.lastModifiedAt,
+      name: bucket.name,
+      usage: bucket.usage,
+      desc: "",
+      accessPolicy: bucket.accessPolicy
     })
+  })
+  if (needNotice) {
     window.$message.success('刷新成功')
-  } catch (error) {
-    window.$message.error('刷新失败')
   }
 }
-
-// 初始化时获取列表
-// onMounted(() => {
-//   fetchBuckets()
-// })
 </script>
 
 <style scoped>
@@ -314,7 +239,7 @@ const refreshBuckets = async () => {
 }
 
 .bucket-header {
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
   height: 40px;
   display: flex;
   justify-content: space-between;
@@ -343,23 +268,25 @@ const refreshBuckets = async () => {
 }
 
 .buckets-grid {
-  flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 0.8rem;
-  overflow: hidden;
+  grid-template-columns: repeat(3, 31%); /* 略微减小列宽，留出边距 */
+  gap: 2% 3.5%; /* 垂直间距2%，水平间距3.5% */
+  height: calc(100% - 60px); /* 减去header和padding的高度 */
+  align-content: start;
+  margin: 0 auto; /* 居中对齐 */
+  width: 100%;
 }
 
 .bucket-card {
-  position: relative;
   background: white;
-  border-radius: 0.8rem;
-  height: 100%;
-  padding: 0.8rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-radius: 1rem;
+  padding: 1rem 1.5rem;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s, box-shadow 0.3s;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
+  aspect-ratio: 3/2; /* 更合适的宽高比 */
+  max-height: 100%; /* 确保不超过容器高度 */
 }
 
 .bucket-card:hover {
@@ -368,35 +295,37 @@ const refreshBuckets = async () => {
 }
 
 .bucket-icon {
-  height: 12%;
+  height: 10%;
+  position: relative;
   display: flex;
   align-items: center;
-  font-size: clamp(1.2rem, 2vh, 2rem);
-  color: var(--primary-color);
 }
 
 .bucket-info {
-  height: 76%;
+  height: 75%;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  padding: 0.5rem 0;
 }
 
 .bucket-info h3 {
-  height: 15%;
+  font-size: 1.1rem;
   margin: 0;
-  display: flex;
-  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bucket-desc {
-  height: 25%;
-  color: var(--text-light);
   font-size: 0.9rem;
-  margin: 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
+  color: var(--text-light);
 }
 
 .bucket-stats {
@@ -405,21 +334,24 @@ const refreshBuckets = async () => {
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
   align-items: center;
+  color: var(--text-light);
+  font-size: 0.9rem;
 }
 
 .bucket-dates {
-  height: 30%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
+  color: var(--text-light);
+  font-size: 0.8rem;
 }
 
 .bucket-actions {
-  height: 12%;
+  height: 15%;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding-top: 0.5rem;
 }
 
 .secondary-actions {
@@ -495,72 +427,23 @@ const refreshBuckets = async () => {
   font-size: 1rem;
 }
 
-.buckets-grid::-webkit-scrollbar {
-  width: 6px;
-}
-
-.buckets-grid::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.buckets-grid::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 3px;
-}
-
-.buckets-grid::-webkit-scrollbar-thumb:hover {
-  background: #999;
+/* 响应式布局 */
+@media (max-width: 1400px) {
+  .buckets-grid {
+    grid-template-columns: repeat(2, 47%); /* 两列时调整宽度和间距 */
+    gap: 2% 6%;
+  }
 }
 
 @media (max-width: 768px) {
-  .bucket-list {
-    padding: 1rem;
-  }
-
   .buckets-grid {
+    grid-template-columns: 90%; /* 单列时占90% */
+    justify-content: center;
     gap: 1rem;
   }
 
   .bucket-card {
-    padding: 1rem;
-  }
-}
-
-@media screen and (max-height: 800px) {
-  .bucket-card {
-    gap: 0.5rem;
-  }
-  
-  .bucket-icon {
-    margin-bottom: 0.5rem;
-  }
-  
-  .bucket-stats, .bucket-dates {
-    font-size: 0.8rem;
-  }
-  
-  .bucket-actions {
-    margin-top: 0.5rem;
-  }
-}
-
-@media screen and (max-height: 600px) {
-  .bucket-dates {
-    height: 0;
-    display: none;
-  }
-  
-  .bucket-info {
-    height: 85%;
-  }
-  
-  .bucket-desc {
-    height: 35%;
-  }
-  
-  .bucket-stats {
-    height: 50%;
+    aspect-ratio: 2/1; /* 在移动端调整宽高比 */
   }
 }
 

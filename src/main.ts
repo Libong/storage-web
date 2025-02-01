@@ -8,6 +8,7 @@ import "element-plus/dist/index.css";
 import "@/loginTemp/login/customCss.scss" //必须全局引用才能被element-plus的customClass发现
 //全局引入组件
 import {ElNotification} from 'element-plus'
+import { ComponentPublicInstance } from 'vue'
 
 // 创建应用实例
 const app = createApp(App)
@@ -15,13 +16,13 @@ const app = createApp(App)
 // 创建全局消息提示实例
 const messageInstance = createApp(Message).mount(
     document.createElement('div')
-)
+) as ComponentPublicInstance<typeof Message>
 document.body.appendChild(messageInstance.$el)
 
 // 添加全局属性
 declare module '@vue/runtime-core' {
     interface ComponentCustomProperties {
-        $message: typeof messageInstance
+        $message: ComponentPublicInstance<typeof Message>
     }
 }
 window.$message = messageInstance

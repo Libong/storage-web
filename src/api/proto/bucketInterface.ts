@@ -1,5 +1,5 @@
 import http from "@/utils/http";
-import { toCamelCaseObject, toSnakeCase } from "@/utils/tool";
+import {toCamelCaseObject, toSnakeCase} from "@/utils/tool";
 
 // 基础消息类型定义
 export interface IBucketAccount {
@@ -22,6 +22,7 @@ export interface IBucket {
     bucketId: string;
     accessPolicy: number; // 访问策略 1公有 2私有 3自定义
     lastModifiedAt: number;
+    desc: string;
 }
 
 export interface IObject {
@@ -35,13 +36,15 @@ export interface IObject {
 // 请求响应类型定义
 export interface IAddBucketReq {
     name: string;
+    accessPolicy: number;
 }
 
 export interface IUpdateBucketReq {
     accessPolicy: number;
     accessRule: string;
     bucketId: string;
-    bucketAccount: IBucketAccount;
+    bucketAccount: IBucketAccount[];
+    desc: string;
 }
 
 export interface IDeleteBucketReq {
@@ -72,6 +75,7 @@ export interface IBucketByIdResp {
     list: IBucketAccountDetail[];
     objectCnt: number;
     establishAt: number;
+    desc: string;
 }
 
 export interface IBrowseBucketObjectsReq {
@@ -106,6 +110,13 @@ export enum UrlExpireType {
     Hour = 1,
     Day = 2,
     Forever = 3
+}
+
+export enum BucketAccessPolicy {
+    Unknown = 0,
+    Private = 1, //私有
+    Publish = 2, //公有
+    Custom = 3, //自定义
 }
 
 // 接口实现
