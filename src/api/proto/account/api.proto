@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package com.liBong.rbac.interface.account;
+
+option go_package = "./;api";
+
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+import "router/api/proto/router.proto";
+import "auth/api/proto/auth.proto";
+
+service AccountInterface {
+  option(libong.prefix) = "/account";
+
+  // 添加账户
+  rpc addAccount(AddAccountReq) returns(google.protobuf.Empty) {
+    option (libong.auth) = true;
+    option(google.api.http) = {
+      post:"/add"
+    };
+  }
+
+  // 更新账户
+  rpc updateAccount(UpdateAccountReq) returns(google.protobuf.Empty) {
+    option (libong.auth) = true;
+    option(google.api.http) = {
+      post:"/update"
+    };
+  }
+
+  // 删除账户
+  rpc deleteAccount(DeleteAccountReq) returns(google.protobuf.Empty) {
+    option (libong.auth) = true;
+    option(google.api.http) = {
+      post:"/delete"
+    };
+  }
+
+  // 分页查询
+  rpc searchAccountsPage(SearchAccountsPageReq) returns(SearchAccountsPageResp) {
+    option (libong.auth) = true;
+    option(google.api.http) = {
+      get:"/search/page"
+    };
+  }
+
+  // 账户详情
+  rpc accountById(AccountByIdReq) returns(AccountByIdResp) {
+    option (libong.auth) = true;
+    option(google.api.http) = {
+      get:"/get"
+    };
+  }
+}
+
+message Account {
+  string account_id = 1;
+  string account = 2;
+  string name = 3;
+  string cid = 4;
+  string phone = 5;
+}
+
+message AddAccountReq {
+  string account = 1;
+  string name = 2;
+  string cid = 3;
+  string phone = 4;
+  uint32 sex = 6;
+  string id_card_no = 7;
+  string email = 8;
+  string avatar = 9;
+  repeated string role_ids = 10;
+}
+
+message UpdateAccountReq {
+  string account_id = 1;
+  string name = 2;
+  string cid = 3;
+  string phone = 4;
+  uint32 sex = 5;
+  string id_card_no = 6;
+  string email = 7;
+  string avatar = 8;
+  repeated string role_ids = 9;
+}
+
+message DeleteAccountReq {
+  string account_id = 1;
+}
+
+message SearchAccountsPageReq {
+  string fuzzy_name = 1;
+  string phone = 2;
+
+  uint32 page_num = 100;
+  uint32 page_size = 101;
+}
+
+message SearchAccountsPageResp {
+  repeated Account list = 1;
+  int64 total = 2;
+}
+
+message AccountByIdReq {
+  string account_id = 1;
+}
+
+message AccountByIdResp {
+  string account_id = 1;
+  string name = 2;
+  string cid = 3;
+  string phone = 4;
+  uint32 sex = 5;
+  string id_card_no = 6;
+  string email = 7;
+  string avatar = 8;
+} 

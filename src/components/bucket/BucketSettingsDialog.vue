@@ -60,15 +60,38 @@
                      :key="account.accountId"
                      class="account-item">
                   <div class="account-info">
-                    <img :alt="account.accountName" :src="account.avatar" class="avatar">
+                    <div v-if="account.avatar" class="avatar">
+                      <img :alt="account.accountName" :src="account.avatar">
+                    </div>
+                    <div v-else class="avatar avatar-default">
+                      {{ getInitials(account.accountName) }}
+                    </div>
                     <span class="account-name">{{ account.accountName }}</span>
                   </div>
                   <div class="account-actions">
-                    <select v-model="account.accessMode">
-                      <option :value="1">只读</option>
-                      <option :value="2">只写</option>
-                      <option :value="3">读写</option>
-                    </select>
+                    <div class="access-mode-group">
+                      <button
+                          :class="['access-btn', { active: account.accessMode === 1 }]"
+                          title="只读权限"
+                          type="button"
+                          @click="account.accessMode = 1">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button
+                          :class="['access-btn', { active: account.accessMode === 2 }]"
+                          title="只写权限"
+                          type="button"
+                          @click="account.accessMode = 2">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button
+                          :class="['access-btn', { active: account.accessMode === 3 }]"
+                          title="读写权限"
+                          type="button"
+                          @click="account.accessMode = 3">
+                        <i class="fas fa-user-shield"></i>
+                      </button>
+                    </div>
                     <button class="btn-remove"
                             title="移除"
                             type="button"
@@ -123,7 +146,7 @@
     </div>
 
     <!-- 添加关联人员的弹窗 -->
-    <div v-if="showAccountDialog" class="account-dialog-overlay" @click.stop="closeAccountDialog">
+    <div v-if="showAccountDialog" class="account-dialog-overlay" @click.stop="closeAddAccountDialog">
       <div class="dialog-content account-dialog" @click.stop>
         <h4>添加关联人员</h4>
         <div class="search-box">
@@ -133,12 +156,11 @@
                  @input="searchUsers">
         </div>
         <div class="search-results">
-          <div v-for="user in searchBucketAccounts"
+          <div v-for="user in searchAccounts"
                :key="user.accountId"
                class="user-item"
                @click="selectUser(user)">
-            <img :alt="user.accountName" :src="user.avatar" class="avatar">
-            <span>{{ user.accountName }}</span>
+            <span>{{ user.name }}</span>
           </div>
         </div>
       </div>
@@ -159,6 +181,7 @@
 import {computed, ref} from 'vue'
 import {BucketAccessPolicy, IBucketAccountDetail, IBucketByIdResp} from "@/api/proto/bucketInterface.ts";
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import {IAccount, searchAccountsPageInterface} from "@/api/proto/accountInterface.ts";
 
 const props = defineProps<{
   visible: boolean
@@ -170,30 +193,10 @@ const emit = defineEmits<{
   (e: 'updated', callback: () => void): void
 }>()
 
-// interface SettingsForm {
-//   name: string
-//   accessPolicy: number
-//   desc: string
-// }
-//
-// const form = reactive<SettingsForm>({
-//   name: '',
-//   accessPolicy: 0,
-//   desc: ''
-// })
-
 const isSubmitting = ref(false)
-
-// // 监听 bucket 属性变化，更新表单
-// if (props.bucket) {
-//   form.name = props.bucket.name
-//   form.accessPolicy = props.bucket.accessPolicy
-//   form.desc = props.bucket.desc || ''
-// }
-
 const showAccountDialog = ref(false)
 const searchQuery = ref('')
-const searchBucketAccounts = ref<IBucketAccountDetail[]>([])
+const searchAccounts = ref<IAccount[]>([])
 
 const displayCount = ref(5)
 const showAll = ref(false)
@@ -234,29 +237,31 @@ const closeDialog = () => {
 
 const showAddAccountDialog = () => {
   showAccountDialog.value = true
+  searchUsers()
 }
 
-const closeAccountDialog = () => {
+const closeAddAccountDialog = () => {
   showAccountDialog.value = false
   searchQuery.value = ''
-  searchBucketAccounts.value = []
+  searchAccounts.value = []
 }
 
+//查询可关联人员
 const searchUsers = async () => {
-  // TODO: 调用搜索用户的API
-  // searchResults.value = await searchUsersAPI(searchQuery.value)
+  const resp = await searchAccountsPageInterface({})
+  searchAccounts.value = resp.list
 }
 
-const selectUser = (user: IBucketAccountDetail) => {
+//选择人员进行关联
+const selectUser = (user: IAccount) => {
   if (!props.bucket.list.some(account => account.accountId === user.accountId)) {
     props.bucket.list.push({
-      ...user,
-      accessMode: 1 // 默认只读权限
+      accessMode: 1, accountId: user.accountId, accountName: "", avatar: "" // 默认只读权限
     })
   }
-  closeAccountDialog()
+  closeAddAccountDialog()
 }
-
+//删除关联人员
 const confirmDialogVisible = ref(false)
 const accountToRemove = ref<IBucketAccountDetail | null>(null)
 
@@ -264,19 +269,22 @@ const confirmRemoveAccount = (account: IBucketAccountDetail) => {
   accountToRemove.value = account
   confirmDialogVisible.value = true
 }
-
 const handleRemoveConfirm = () => {
   if (accountToRemove.value) {
     removeAccount(accountToRemove.value.accountId)
     accountToRemove.value = null
   }
 }
-
 const removeAccount = (accountId: string) => {
   const index = props.bucket.list.findIndex(account => account.accountId === accountId)
   if (index !== -1) {
     props.bucket.list.splice(index, 1)
   }
+}
+
+// 获取名字的首字母
+const getInitials = (name: string): string => {
+  return name ? name.charAt(0).toUpperCase() : '?'
 }
 </script>
 
@@ -355,7 +363,7 @@ const removeAccount = (accountId: string) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2.5rem;
   max-width: 50%;
   padding-right: 2rem;
 }
@@ -462,7 +470,6 @@ input:focus, textarea:focus {
   flex: 1;
   overflow-y: auto;
   padding-right: 0.5rem;
-  margin: 1rem 0;
 }
 
 .account-list::-webkit-scrollbar {
@@ -523,7 +530,24 @@ input:focus, textarea:focus {
   width: 32px;
   height: 32px;
   border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+
+.avatar-default {
+  background: white;
+  border: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  color: var(--text-color);
+  font-size: 1rem;
 }
 
 .account-name {
@@ -536,23 +560,55 @@ input:focus, textarea:focus {
   gap: 0.8rem;
 }
 
-select {
-  padding: 0.4rem;
-  border-radius: 0.3rem;
-  border: 1px solid #ddd;
+.access-mode-group {
+  display: flex;
+  background: #f0f0f0;
+  padding: 2px;
+  border-radius: 6px;
+  gap: 2px;
+}
+
+.access-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.access-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--primary-color);
+}
+
+.access-btn.active {
+  background: white;
+  color: var(--primary-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-remove {
-  background: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f0f0f0;
   border: none;
   color: #999;
   cursor: pointer;
-  padding: 0.4rem;
-  transition: color 0.3s;
+  transition: all 0.3s;
 }
 
 .btn-remove:hover {
-  color: #f56c6c;
+  background: rgba(241, 6, 6, 0.75);
+  color: #a82a2a;
 }
 
 .btn-add-account {

@@ -43,7 +43,7 @@ export interface IUpdateBucketReq {
     accessPolicy: number;
     accessRule: string;
     bucketId: string;
-    bucketAccount: IBucketAccount[];
+    bucketAccounts: IBucketAccount[];
     desc: string;
 }
 

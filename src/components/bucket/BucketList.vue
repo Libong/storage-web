@@ -184,7 +184,7 @@ const confirmCallback = async () => {
       await updateBucketInterface({
         accessPolicy: updateBucketData.value.accessPolicy,
         accessRule: updateBucketData.value.accessRule,
-        bucketAccount: [],
+        bucketAccounts: updateBucketData.value.list,
         bucketId: updateBucketData.value.bucketId,
         desc: updateBucketData.value.desc
       });
