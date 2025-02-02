@@ -72,7 +72,7 @@
                     <button class="btn-remove"
                             title="移除"
                             type="button"
-                            @click="removeAccount(account.accountId)">
+                            @click="confirmRemoveAccount(account)">
                       <i class="fas fa-times"></i>
                     </button>
                   </div>
@@ -133,7 +133,7 @@
                  @input="searchUsers">
         </div>
         <div class="search-results">
-          <div v-for="user in searchResults"
+          <div v-for="user in searchBucketAccounts"
                :key="user.accountId"
                class="user-item"
                @click="selectUser(user)">
@@ -143,12 +143,22 @@
         </div>
       </div>
     </div>
+
+    <!-- 添加删除确认对话框 -->
+    <ConfirmDialog
+        v-model:visible="confirmDialogVisible"
+        :message="`确定要移除 ${accountToRemove?.accountName || ''} 的权限吗？`"
+        title="移除关联人员"
+        type="danger"
+        @confirm="handleRemoveConfirm"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
 import {computed, ref} from 'vue'
 import {BucketAccessPolicy, IBucketAccountDetail, IBucketByIdResp} from "@/api/proto/bucketInterface.ts";
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const props = defineProps<{
   visible: boolean
@@ -183,7 +193,7 @@ const isSubmitting = ref(false)
 
 const showAccountDialog = ref(false)
 const searchQuery = ref('')
-const searchResults = ref<IBucketAccountDetail[]>([])
+const searchBucketAccounts = ref<IBucketAccountDetail[]>([])
 
 const displayCount = ref(5)
 const showAll = ref(false)
@@ -229,7 +239,7 @@ const showAddAccountDialog = () => {
 const closeAccountDialog = () => {
   showAccountDialog.value = false
   searchQuery.value = ''
-  searchResults.value = []
+  searchBucketAccounts.value = []
 }
 
 const searchUsers = async () => {
@@ -245,6 +255,21 @@ const selectUser = (user: IBucketAccountDetail) => {
     })
   }
   closeAccountDialog()
+}
+
+const confirmDialogVisible = ref(false)
+const accountToRemove = ref<IBucketAccountDetail | null>(null)
+
+const confirmRemoveAccount = (account: IBucketAccountDetail) => {
+  accountToRemove.value = account
+  confirmDialogVisible.value = true
+}
+
+const handleRemoveConfirm = () => {
+  if (accountToRemove.value) {
+    removeAccount(accountToRemove.value.accountId)
+    accountToRemove.value = null
+  }
 }
 
 const removeAccount = (accountId: string) => {
@@ -274,7 +299,7 @@ const removeAccount = (accountId: string) => {
   background: white;
   border-radius: 1rem;
   padding: 2rem;
-  width: 95%;
+  width: 60%;
   max-width: 1200px; /* 增加最大宽度 */
   max-height: 90vh;
   display: flex;
@@ -531,7 +556,24 @@ select {
 }
 
 .btn-add-account {
-  margin-top: auto; /* 将添加按钮固定在底部 */
+  padding: 0.8rem;
+  border: 2px dashed #ddd;
+  border-radius: 0.5rem;
+  background: none;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all 0.3s;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.btn-add-account:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 .account-dialog-overlay {
