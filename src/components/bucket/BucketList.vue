@@ -99,7 +99,7 @@ import {
 import {timestamp2DateStr} from "@/utils/tool.ts";
 
 onMounted(() => {
-  refreshBuckets(true);
+  refreshBuckets();
 })
 //列表数据
 const buckets = ref<IBucket[]>([])

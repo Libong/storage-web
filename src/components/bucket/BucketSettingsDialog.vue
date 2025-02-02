@@ -9,42 +9,98 @@
       </div>
 
       <form class="settings-form" @submit.prevent="handleSubmit">
-        <div class="form-item">
-          <label>存储空间名称</label>
-          <input
-              v-model="props.bucket.name"
-              disabled
-              type="text"
-          >
-        </div>
+        <div class="form-content">
+          <!-- 左侧基本设置 -->
+          <div class="settings-left">
+            <div class="form-item">
+              <label>存储空间名称</label>
+              <input
+                  v-model="props.bucket.name"
+                  disabled
+                  type="text"
+              >
+            </div>
 
-        <div class="form-item">
-          <label>访问权限</label>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input
-                  v-model="props.bucket.accessPolicy"
-                  :value="BucketAccessPolicy.Private"
-                  type="radio"
-              > 私有
-            </label>
-            <label class="radio-label">
-              <input
-                  v-model="props.bucket.accessPolicy"
-                  :value="BucketAccessPolicy.Publish"
-                  type="radio"
-              > 公开
-            </label>
+            <div class="form-item">
+              <label>访问权限</label>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input
+                      v-model="props.bucket.accessPolicy"
+                      :value="BucketAccessPolicy.Private"
+                      type="radio"
+                  > 私有
+                </label>
+                <label class="radio-label">
+                  <input
+                      v-model="props.bucket.accessPolicy"
+                      :value="BucketAccessPolicy.Publish"
+                      type="radio"
+                  > 公开
+                </label>
+              </div>
+            </div>
+
+            <div class="form-item">
+              <label>描述</label>
+              <textarea
+                  v-model="props.bucket.desc"
+                  placeholder="请输入存储空间描述信息"
+                  rows="3"
+              ></textarea>
+            </div>
           </div>
-        </div>
 
-        <div class="form-item">
-          <label>描述</label>
-          <textarea
-              v-model="props.bucket.desc"
-              placeholder="请输入存储空间描述信息"
-              rows="3"
-          ></textarea>
+          <!-- 右侧关联人员 -->
+          <div class="settings-right">
+            <div class="form-item account-section">
+              <label>关联人员权限</label>
+              <div class="account-list">
+                <div v-for="(account, index) in displayAccounts"
+                     :key="account.accountId"
+                     class="account-item">
+                  <div class="account-info">
+                    <img :alt="account.accountName" :src="account.avatar" class="avatar">
+                    <span class="account-name">{{ account.accountName }}</span>
+                  </div>
+                  <div class="account-actions">
+                    <select v-model="account.accessMode">
+                      <option :value="1">只读</option>
+                      <option :value="2">只写</option>
+                      <option :value="3">读写</option>
+                    </select>
+                    <button class="btn-remove"
+                            title="移除"
+                            type="button"
+                            @click="removeAccount(account.accountId)">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="props.bucket.list.length > 0" class="account-actions-wrapper">
+                <button v-if="!showAll && hasMore"
+                        class="btn-show-more"
+                        type="button"
+                        @click="loadMore">
+                  显示更多 ({{ remainingCount }})
+                </button>
+                <button v-if="!showAll && props.bucket.list.length > displayCount"
+                        class="btn-show-all"
+                        type="button"
+                        @click="showAllAccounts">
+                  显示全部
+                </button>
+              </div>
+
+              <button class="btn-add-account"
+                      type="button"
+                      @click="showAddAccountDialog">
+                <i class="fas fa-plus"></i> 添加关联人员
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="form-actions">
@@ -65,12 +121,34 @@
         </div>
       </form>
     </div>
+
+    <!-- 添加关联人员的弹窗 -->
+    <div v-if="showAccountDialog" class="account-dialog-overlay" @click.stop="closeAccountDialog">
+      <div class="dialog-content account-dialog" @click.stop>
+        <h4>添加关联人员</h4>
+        <div class="search-box">
+          <input v-model="searchQuery"
+                 placeholder="搜索用户..."
+                 type="text"
+                 @input="searchUsers">
+        </div>
+        <div class="search-results">
+          <div v-for="user in searchResults"
+               :key="user.accountId"
+               class="user-item"
+               @click="selectUser(user)">
+            <img :alt="user.accountName" :src="user.avatar" class="avatar">
+            <span>{{ user.accountName }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import {ref} from 'vue'
-import {BucketAccessPolicy, IBucketByIdResp} from "@/api/proto/bucketInterface.ts";
+import {computed, ref} from 'vue'
+import {BucketAccessPolicy, IBucketAccountDetail, IBucketByIdResp} from "@/api/proto/bucketInterface.ts";
 
 const props = defineProps<{
   visible: boolean
@@ -103,6 +181,36 @@ const isSubmitting = ref(false)
 //   form.desc = props.bucket.desc || ''
 // }
 
+const showAccountDialog = ref(false)
+const searchQuery = ref('')
+const searchResults = ref<IBucketAccountDetail[]>([])
+
+const displayCount = ref(5)
+const showAll = ref(false)
+
+const displayAccounts = computed(() => {
+  if (showAll.value) {
+    return props.bucket.list
+  }
+  return props.bucket.list.slice(0, displayCount.value)
+})
+
+const hasMore = computed(() => {
+  return props.bucket.list.length > displayCount.value
+})
+
+const remainingCount = computed(() => {
+  return props.bucket.list.length - displayCount.value
+})
+
+const loadMore = () => {
+  displayCount.value += 5
+}
+
+const showAllAccounts = () => {
+  showAll.value = true
+}
+
 const handleSubmit = async () => {
   isSubmitting.value = true
   emit("updated", () => {
@@ -112,6 +220,38 @@ const handleSubmit = async () => {
 
 const closeDialog = () => {
   emit('update:visible', false)
+}
+
+const showAddAccountDialog = () => {
+  showAccountDialog.value = true
+}
+
+const closeAccountDialog = () => {
+  showAccountDialog.value = false
+  searchQuery.value = ''
+  searchResults.value = []
+}
+
+const searchUsers = async () => {
+  // TODO: 调用搜索用户的API
+  // searchResults.value = await searchUsersAPI(searchQuery.value)
+}
+
+const selectUser = (user: IBucketAccountDetail) => {
+  if (!props.bucket.list.some(account => account.accountId === user.accountId)) {
+    props.bucket.list.push({
+      ...user,
+      accessMode: 1 // 默认只读权限
+    })
+  }
+  closeAccountDialog()
+}
+
+const removeAccount = (accountId: string) => {
+  const index = props.bucket.list.findIndex(account => account.accountId === accountId)
+  if (index !== -1) {
+    props.bucket.list.splice(index, 1)
+  }
 }
 </script>
 
@@ -134,18 +274,17 @@ const closeDialog = () => {
   background: white;
   border-radius: 1rem;
   padding: 2rem;
-  width: 90%;
-  max-width: 600px;
+  width: 95%;
+  max-width: 1200px; /* 增加最大宽度 */
   max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
 }
 
 .dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
 }
 
 .dialog-header h3 {
@@ -177,7 +316,31 @@ const closeDialog = () => {
 .settings-form {
   display: flex;
   flex-direction: column;
+  height: 100%;
+}
+
+.form-content {
+  display: flex;
+  padding: 2rem 0;;
+  height: 100%;
+  min-height: 500px;
+}
+
+.settings-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
+  max-width: 50%;
+  padding-right: 2rem;
+}
+
+.settings-right {
+  width: 400px; /* 固定右侧宽度 */
+  border-left: 1px solid #eee;
+  padding-left: 2rem;
+  max-width: 50%;
+  flex: 1;
 }
 
 .form-item {
@@ -224,10 +387,12 @@ input:focus, textarea:focus {
 
 /* 按钮样式 */
 .form-actions {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #eee;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 1rem;
-  margin-top: 2rem;
+  background: white;
 }
 
 .btn-cancel, .btn-submit {
@@ -260,5 +425,177 @@ input:focus, textarea:focus {
 
 .btn-submit:not(:disabled):hover {
   background: var(--secondary-color);
+}
+
+.account-section {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  margin: 1rem 0;
+}
+
+.account-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.account-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.account-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.account-list::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+.account-actions-wrapper {
+  margin: 1rem 0;
+}
+
+.btn-show-more,
+.btn-show-all {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.btn-show-more:hover,
+.btn-show-all:hover {
+  color: var(--secondary-color);
+  text-decoration: underline;
+}
+
+.account-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem;
+  background: #f5f5f5;
+  border-radius: 0.5rem;
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.account-name {
+  font-weight: 500;
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+select {
+  padding: 0.4rem;
+  border-radius: 0.3rem;
+  border: 1px solid #ddd;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 0.4rem;
+  transition: color 0.3s;
+}
+
+.btn-remove:hover {
+  color: #f56c6c;
+}
+
+.btn-add-account {
+  margin-top: auto; /* 将添加按钮固定在底部 */
+}
+
+.account-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.account-dialog {
+  max-width: 400px;
+}
+
+.search-box {
+  margin: 1rem 0;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+}
+
+.search-results {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.user-item:hover {
+  background: #f5f5f5;
+}
+
+/* 响应式布局 */
+@media (max-width: 1024px) {
+  .form-content {
+    flex-direction: column;
+  }
+
+  .settings-right {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #eee;
+    padding-left: 0;
+    padding-top: 2rem;
+  }
+
+  .account-list {
+    max-height: 300px;
+  }
 }
 </style> 
