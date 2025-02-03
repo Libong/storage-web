@@ -111,22 +111,31 @@ onMounted(async () => {
     return
   }
   rootPath.value = resp.name
-  const objectsResp = await browseBucketObjectsInterface({
-    path: rootPath.value
-  })
-  objects.value = objectsResp.list
-  // 初始化根目录内容
-  // loadContent([])
+  //初始化根目录内容
+  navigateTo([rootPath.value])
 })
 
-// const loadContent = (path: string[]) => {
-//   const pathKey = path.length === 0 ? 'root' : `root/${path.join('/')}`
-//   objects.value = [...(mockData[pathKey] || [])]
-// }
+const pathSlice2Str = (path: string[]): string => {
+  let pathStr = ""
+  path.forEach(value => {
+    pathStr = pathStr.concat(value)
+    pathStr = pathStr.concat("/")
+  })
+  return pathStr
+}
+const loadObjects = async (path: string[]) => {
+  const objectsResp = await browseBucketObjectsInterface({
+    path: pathSlice2Str(path)
+  })
+  objects.value = objectsResp.list
+}
 
+//进入下层级目录
 const navigateTo = (path: string[]) => {
-  // currentPath.value = path
-  // loadContent(path)
+  //设置当前目录
+  currentPath.value = path
+  //加载当前目录文件信息
+  loadObjects(path)
 }
 
 const handleItemClick = (item: IObject) => {
@@ -137,10 +146,10 @@ const handleItemClick = (item: IObject) => {
 }
 
 const goBack = () => {
-  if (currentPath.value.length > 0) {
+  if (currentPath.value.length > 1) {
     navigateTo(currentPath.value.slice(0, -1))
   } else {
-    router.push('/buckets')
+    router.push('/main/buckets')
   }
 }
 

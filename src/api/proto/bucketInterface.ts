@@ -12,6 +12,8 @@ export interface IBucketAccountDetail {
     accountName: string;
     accessMode: number; // 访问权限 1只读 2只写 3读写
     avatar: string;
+    accessKey: string; //访问密钥
+    accessSecret: string; //访问密码
 }
 
 export interface IBucket {
