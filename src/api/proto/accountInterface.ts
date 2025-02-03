@@ -8,6 +8,8 @@ export interface IAccount {
     name: string;
     cid: string;
     phone: string;
+    accessKey: string; // 访问密钥
+    accessSecret: string; // 访问密码
 }
 
 // 请求响应类型定义

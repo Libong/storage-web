@@ -92,6 +92,10 @@
                         <i class="fas fa-user-shield"></i>
                       </button>
                     </div>
+                    <button class="btn-icon" title="查看密钥" type="button"
+                            @click.stop="showKeyInfo(account.accessKey, account.accessSecret)">
+                      <i class="fas fa-key"></i>
+                    </button>
                     <button class="btn-remove"
                             title="移除"
                             type="button"
@@ -184,6 +188,13 @@
         type="danger"
         @confirm="handleRemoveConfirm"
     />
+
+    <KeyInfoDialog
+        v-if="showKeyDialog"
+        :accessKey="currentAccessKey"
+        :accessSecret="currentAccessSecret"
+        :closeDialog="closeKeyInfoDialog"
+    />
   </div>
 </template>
 
@@ -192,6 +203,7 @@ import {computed, ref} from 'vue'
 import {BucketAccessPolicy, IBucketAccountDetail, IBucketByIdResp} from "@/api/proto/bucketInterface.ts";
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import {IAccount, searchAccountsPageInterface} from "@/api/proto/accountInterface.ts";
+import KeyInfoDialog from '@/components/common/KeyInfoDialog.vue';
 
 const props = defineProps<{
   visible: boolean
@@ -235,6 +247,7 @@ const showAllAccounts = () => {
 }
 
 const handleSubmit = async () => {
+  console.log("handleSubmit in")
   isSubmitting.value = true
   emit("updated", () => {
     isSubmitting.value = false
@@ -279,8 +292,10 @@ const selectUser = (user: IAccount) => {
     props.bucket.list.push({
       accessMode: 1,
       accountId: user.accountId,
-      accountName: user.account, // 使用 user.name 作为 accountName
-      avatar: ""
+      accountName: user.account,
+      avatar: "",
+      accessKey: user.accessKey,
+      accessSecret: user.accessSecret
     })
   }
   closeAddAccountDialog()
@@ -309,6 +324,24 @@ const removeAccount = (accountId: string) => {
 // 获取名字的首字母
 const getInitials = (name: string): string => {
   return name ? name.charAt(0).toUpperCase() : '?'
+}
+
+const showKeyDialog = ref(false)
+const currentAccessKey = ref('')
+const currentAccessSecret = ref('')
+
+const showKeyInfo = (accessKey: string, accessSecret: string) => {
+  if (accessKey != undefined) {
+    currentAccessKey.value = accessKey
+  }
+  if (accessSecret != undefined) {
+    currentAccessSecret.value = accessSecret
+  }
+  showKeyDialog.value = true
+}
+
+const closeKeyInfoDialog = () => {
+  showKeyDialog.value = false
 }
 </script>
 
@@ -735,5 +768,17 @@ input:focus, textarea:focus {
   .account-list {
     max-height: 300px;
   }
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: color 0.3s;
+}
+
+.btn-icon:hover {
+  color: var(--primary-color);
 }
 </style> 

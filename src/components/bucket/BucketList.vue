@@ -66,6 +66,7 @@
         :message="confirmDialogParam.message"
         :title="confirmDialogParam.title"
         :type="confirmDialogParam.type"
+        @cancel="cancelCallback"
         @confirm="confirmCallback"
     />
 
@@ -163,6 +164,10 @@ const handleBucketAdd = async (data: IAddBucketReq, callback: () => void) => {
 
 const resetConfirmDialogParam = () => {
   confirmDialogParam.value = {...defaultConfirmDialogParam}
+}
+const cancelCallback = async () => {
+  resetConfirmDialogParam()
+  window.$message.success('更新已取消')
 }
 const confirmCallback = async () => {
   if (deleteBucketId.value != "") {
