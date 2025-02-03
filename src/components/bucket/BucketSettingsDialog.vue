@@ -156,11 +156,14 @@
                  @input="searchUsers">
         </div>
         <div class="search-results">
-          <div v-for="user in searchAccounts"
+          <div v-if="searchAccounts.length === 0" class="no-results">
+            暂无可关联的用户
+          </div>
+          <div v-for="user in searchAccounts" v-else
                :key="user.accountId"
                class="user-item"
                @click="selectUser(user)">
-            <span>{{ user.name }}</span>
+            <span>{{ user.account }}</span>
           </div>
         </div>
       </div>
@@ -256,7 +259,10 @@ const searchUsers = async () => {
 const selectUser = (user: IAccount) => {
   if (!props.bucket.list.some(account => account.accountId === user.accountId)) {
     props.bucket.list.push({
-      accessMode: 1, accountId: user.accountId, accountName: "", avatar: "" // 默认只读权限
+      accessMode: 1,
+      accountId: user.accountId,
+      accountName: user.account, // 使用 user.name 作为 accountName
+      avatar: ""
     })
   }
   closeAddAccountDialog()
@@ -663,19 +669,34 @@ input:focus, textarea:focus {
 .search-results {
   max-height: 300px;
   overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .user-item {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
   padding: 0.8rem;
   cursor: pointer;
   transition: background 0.3s;
+  border-bottom: 1px solid #eee;
+}
+
+.user-item span {
+  color: var(--text-color);
+  font-size: 0.9rem;
 }
 
 .user-item:hover {
   background: #f5f5f5;
+}
+
+.no-results {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-light);
+  font-size: 0.9rem;
 }
 
 /* 响应式布局 */
