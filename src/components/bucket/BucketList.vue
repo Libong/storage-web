@@ -129,9 +129,7 @@ const openCreateDialog = () => {
 // TODO: 进入 bucket 时需要获取该 bucket 的详细信息和权限
 const enterBucket = async (id: string) => {
   try {
-    // TODO: 调用 API 获取 bucket 详情和权限
-    // const response = await api.getBucketDetails(id)
-    router.push(`/buckets/${id}`)
+    router.push({path: `/buckets/${id}`})
   } catch (error) {
     window.$message.error('进入存储空间失败')
   }

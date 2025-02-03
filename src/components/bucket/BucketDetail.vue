@@ -5,13 +5,13 @@
         <button class="btn-back" @click="goBack">
           <i class="fas fa-arrow-left"></i>
         </button>
-        <h2>{{ bucket?.name }}</h2>
-        <span class="bucket-type" :class="bucket?.type">
-          {{ bucket?.type === 'public' ? '公开' : '私有' }}
+        <h2>{{ bucket.name }}</h2>
+        <span :class="bucket.accessPolicy" class="bucket-type">
+          {{ bucket.accessPolicy === BucketAccessPolicy.Publish ? '公开' : '私有' }}
         </span>
       </div>
       <div class="header-actions">
-        <input type="file" ref="fileInput" @change="handleFileUpload" style="display: none;" />
+        <input ref="fileInput" style="display: none;" type="file" @change="handleFileUpload"/>
         <button class="btn-upload" @click="triggerFileUpload">
           <i class="fas fa-upload"></i> 上传
         </button>
@@ -28,43 +28,45 @@
         </button>
         <template v-for="(segment, index) in currentPath" :key="index">
           <i class="fas fa-chevron-right separator"></i>
-          <button 
-            class="path-item"
-            @click="navigateTo(currentPath.slice(0, index + 1))"
-          >{{ segment }}</button>
+          <button
+              class="path-item"
+              @click="navigateTo(currentPath.slice(0, index + 1))"
+          >{{ segment }}
+          </button>
         </template>
       </div>
 
       <div class="content-table">
         <table>
           <thead>
-            <tr>
-              <th>名称</th>
-              <th>大小</th>
-              <th>修改时间</th>
-              <th>操作</th>
-            </tr>
+          <tr>
+            <th>名称</th>
+            <th>大小</th>
+            <th>修改时间</th>
+            <th>操作</th>
+          </tr>
           </thead>
           <tbody>
-            <tr v-for="item in currentItems" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-folder': item.isFolder }">
-              <td class="name-cell">
-                <i :class="getItemIcon(item)"></i>
-                <span>{{ item.name }}</span>
-              </td>
-              <td>{{ formatSize(item.size) }}</td>
-              <td>{{ item.modifiedTime }}</td>
-              <td class="actions-cell" @click.stop>
-                <button class="btn-action" title="下载" v-if="!item.isFolder">
-                  <i class="fas fa-download"></i>
-                </button>
-                <button class="btn-action" title="分享">
-                  <i class="fas fa-share-alt"></i>
-                </button>
-                <button class="btn-action" title="删除">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
-              </td>
-            </tr>
+          <tr v-for="(item,index) in objects" :key="index" :class="{ 'is-folder': item.isDir }"
+              @click="handleItemClick(item)">
+            <td class="name-cell">
+              <i :class="getItemIcon(item)"></i>
+              <span>{{ item.name }}</span>
+            </td>
+            <td>{{ formatSize(item.size) }}</td>
+            <td>{{ timestamp2DateStr(item.lastModifyAt) }}</td>
+            <td class="actions-cell" @click.stop>
+              <button v-if="!item.isDir" class="btn-action" title="下载">
+                <i class="fas fa-download"></i>
+              </button>
+              <button class="btn-action" title="分享">
+                <i class="fas fa-share-alt"></i>
+              </button>
+              <button class="btn-action" title="删除">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </td>
+          </tr>
           </tbody>
         </table>
       </div>
@@ -72,26 +74,18 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { formatSize } from '@/utils/format'
-import {isDev} from "@/config/env/env.ts";
-
-interface BucketItem {
-  id: string
-  name: string
-  size: number
-  modifiedTime: string
-  isFolder: boolean
-  type?: string
-}
-
-interface BucketInfo {
-  id: string
-  name: string
-  type: 'private' | 'public'
-}
+<script lang="ts" setup>
+import {onMounted, ref} from 'vue'
+import {useRouter} from 'vue-router'
+import {formatSize} from '@/utils/format'
+import {
+  browseBucketObjectsInterface,
+  BucketAccessPolicy,
+  bucketByIdInterface,
+  IBucketByIdResp,
+  IObject
+} from "@/api/proto/bucketInterface.ts";
+import {timestamp2DateStr} from "@/utils/tool.ts";
 
 const props = defineProps<{
   bucketId: string
@@ -99,194 +93,44 @@ const props = defineProps<{
 
 const router = useRouter()
 const currentPath = ref<string[]>([])
-const bucket = ref<BucketInfo | null>(null)
+const bucket = ref<IBucketByIdResp>({
+  accessPolicy: 0, accessRule: "", bucketId: "", desc: "", establishAt: 0, list: [], name: "", objectCnt: 0, usage: 0
+})
 const fileInput = ref<HTMLInputElement | null>(null)
 
-// 模拟数据结构
-const mockData = {
-  'root': [
-    {
-      id: '1',
-      name: '文档',
-      size: 0,
-      modifiedTime: '2024-03-20',
-      isFolder: true
-    },
-    {
-      id: '2',
-      name: '图片素材',
-      size: 0,
-      modifiedTime: '2024-03-19',
-      isFolder: true
-    },
-    {
-      id: '3',
-      name: '项目文件',
-      size: 0,
-      modifiedTime: '2024-03-18',
-      isFolder: true
-    },
-    {
-      id: '4',
-      name: '测试文件.pdf',
-      size: 1024 * 1024 * 2.5,
-      modifiedTime: '2024-03-19',
-      isFolder: false,
-      type: 'pdf'
-    }
-  ],
-  'root/文档': [
-    {
-      id: '5',
-      name: '工作',
-      size: 0,
-      modifiedTime: '2024-03-17',
-      isFolder: true
-    },
-    {
-      id: '6',
-      name: '个人',
-      size: 0,
-      modifiedTime: '2024-03-16',
-      isFolder: true
-    },
-    {
-      id: '7',
-      name: '项目计划.docx',
-      size: 1024 * 512,
-      modifiedTime: '2024-03-18',
-      isFolder: false,
-      type: 'docx'
-    }
-  ],
-  'root/文档/工作': [
-    {
-      id: '8',
-      name: '会议记录',
-      size: 0,
-      modifiedTime: '2024-03-15',
-      isFolder: true
-    },
-    {
-      id: '9',
-      name: '2024年计划.xlsx',
-      size: 1024 * 256,
-      modifiedTime: '2024-03-14',
-      isFolder: false,
-      type: 'xlsx'
-    }
-  ],
-  'root/文档/工作/会议记录': [
-    {
-      id: '10',
-      name: '3月产品评审.docx',
-      size: 1024 * 128,
-      modifiedTime: '2024-03-13',
-      isFolder: false,
-      type: 'docx'
-    },
-    {
-      id: '11',
-      name: '团队周会纪要.pdf',
-      size: 1024 * 64,
-      modifiedTime: '2024-03-12',
-      isFolder: false,
-      type: 'pdf'
-    }
-  ],
-  'root/图片素材': [
-    {
-      id: '12',
-      name: '产品展示',
-      size: 0,
-      modifiedTime: '2024-03-11',
-      isFolder: true
-    },
-    {
-      id: '13',
-      name: 'banner设计.psd',
-      size: 1024 * 1024 * 15,
-      modifiedTime: '2024-03-10',
-      isFolder: false,
-      type: 'psd'
-    },
-    {
-      id: '14',
-      name: 'logo.png',
-      size: 1024 * 512,
-      modifiedTime: '2024-03-09',
-      isFolder: false,
-      type: 'png'
-    }
-  ],
-  'root/图片素材/产品展示': [
-    {
-      id: '15',
-      name: '主图.jpg',
-      size: 1024 * 1024 * 2,
-      modifiedTime: '2024-03-08',
-      isFolder: false,
-      type: 'jpg'
-    },
-    {
-      id: '16',
-      name: '细节图',
-      size: 0,
-      modifiedTime: '2024-03-07',
-      isFolder: true
-    }
-  ],
-  'root/项目文件': [
-    {
-      id: '17',
-      name: '源代码',
-      size: 0,
-      modifiedTime: '2024-03-06',
-      isFolder: true
-    },
-    {
-      id: '18',
-      name: '设计稿',
-      size: 0,
-      modifiedTime: '2024-03-05',
-      isFolder: true
-    },
-    {
-      id: '19',
-      name: 'README.md',
-      size: 1024 * 2,
-      modifiedTime: '2024-03-04',
-      isFolder: false,
-      type: 'md'
-    }
-  ]
-}
+const objects = ref<IObject[]>([])
 
-const currentItems = ref<BucketItem[]>([])
+const rootPath = ref<string>('')
 
-onMounted(() => {
-  // 模拟获取 bucket 信息
-  bucket.value = {
-    id: props.bucketId,
-    name: '个人文档',
-    type: 'private'
+onMounted(async () => {
+  const resp = await bucketByIdInterface({
+    bucketId: props.bucketId
+  })
+  if (resp.name == "") {
+    window.$message.error('获取空间文件数据失败')
+    return
   }
+  rootPath.value = resp.name
+  const objectsResp = await browseBucketObjectsInterface({
+    path: rootPath.value
+  })
+  objects.value = objectsResp.list
   // 初始化根目录内容
-  loadContent([])
+  // loadContent([])
 })
 
-const loadContent = (path: string[]) => {
-  const pathKey = path.length === 0 ? 'root' : `root/${path.join('/')}`
-  currentItems.value = [...(mockData[pathKey] || [])]
-}
+// const loadContent = (path: string[]) => {
+//   const pathKey = path.length === 0 ? 'root' : `root/${path.join('/')}`
+//   objects.value = [...(mockData[pathKey] || [])]
+// }
 
 const navigateTo = (path: string[]) => {
-  currentPath.value = path
-  loadContent(path)
+  // currentPath.value = path
+  // loadContent(path)
 }
 
-const handleItemClick = (item: BucketItem) => {
-  if (item.isFolder) {
+const handleItemClick = (item: IObject) => {
+  if (item.isDir) {
     const newPath = [...currentPath.value, item.name]
     navigateTo(newPath)
   }
@@ -309,35 +153,16 @@ const handleFileUpload = async (event: Event) => {
   if (!files || files.length === 0) return
 
   const file = files[0]
-  
-  try {
-    if (isDev) {
-      // 使用模拟数据
-      const newItem: BucketItem = {
-        id: `file-${Date.now()}`,
-        name: file.name,
-        size: file.size,
-        modifiedTime: new Date().toISOString().split('T')[0],
-        isFolder: false,
-        type: file.name.split('.').pop()
-      }
 
-      const pathKey = currentPath.value.length === 0 ? 'root' : `root/${currentPath.value.join('/')}`
-      if (!mockData[pathKey]) {
-        mockData[pathKey] = []
-      }
-      mockData[pathKey].push(newItem)
-      loadContent(currentPath.value)
-    } else {
-      // 实际的API调用
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('path', currentPath.value.join('/'))
-      
-      // TODO: 调用实际的上传API
-      // const response = await api.uploadFile(props.bucketId, formData)
-      // await loadContent(currentPath.value)
-    }
+  try {
+    // 实际的API调用
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('path', currentPath.value.join('/'))
+
+    // TODO: 调用实际的上传API
+    // const response = await api.uploadFile(props.bucketId, formData)
+    // await loadContent(currentPath.value)
 
     window.$message.success(`文件 "${file.name}" 上传成功`)
   } catch (error) {
@@ -345,9 +170,9 @@ const handleFileUpload = async (event: Event) => {
   }
 }
 
-const getItemIcon = (item: BucketItem) => {
-  if (item.isFolder) return 'fas fa-folder'
-  
+const getItemIcon = (item: IObject) => {
+  if (item.isDir) return 'fas fa-folder'
+
   // 根据文件类型返回不同图标
   const iconMap: Record<string, string> = {
     pdf: 'fas fa-file-pdf',
@@ -362,7 +187,7 @@ const getItemIcon = (item: BucketItem) => {
     mp3: 'fas fa-file-audio'
   }
 
-  const ext = item.type || ''
+  const ext = item.name.split('.').pop() || ''
   return iconMap[ext] || 'fas fa-file'
 }
 </script>
@@ -556,8 +381,24 @@ table {
   border-collapse: collapse;
 }
 
-td:nth-child(1) { width: 40%; } /* 名称列 */
-td:nth-child(2) { width: 15%; } /* 大小列 */
-td:nth-child(3) { width: 25%; } /* 修改时间列 */
-td:nth-child(4) { width: 20%; } /* 操作列 */
+td:nth-child(1) {
+  width: 40%;
+}
+
+/* 名称列 */
+td:nth-child(2) {
+  width: 15%;
+}
+
+/* 大小列 */
+td:nth-child(3) {
+  width: 25%;
+}
+
+/* 修改时间列 */
+td:nth-child(4) {
+  width: 20%;
+}
+
+/* 操作列 */
 </style> 

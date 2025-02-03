@@ -56,7 +56,7 @@
             <div class="form-item account-section">
               <label>关联人员权限</label>
               <div class="account-list">
-                <div v-for="(account, index) in displayAccounts"
+                <div v-for="(account) in displayAccounts"
                      :key="account.accountId"
                      class="account-item">
                   <div class="account-info">
@@ -150,7 +150,7 @@
       <div class="dialog-content account-dialog" @click.stop>
         <h4>添加关联人员</h4>
         <div class="search-box">
-          <input v-model="searchQuery"
+          <input v-model="searchAccountName"
                  placeholder="搜索用户..."
                  type="text"
                  @input="searchUsers">
@@ -163,7 +163,14 @@
                :key="user.accountId"
                class="user-item"
                @click="selectUser(user)">
-            <span>{{ user.account }}</span>
+            <div v-if="user.account != ''">
+              <span>用户名：</span>
+              <span>{{ user.account }}</span>
+            </div>
+            <div v-if="user.name != ''">
+              <span>姓名：</span>
+              <span>{{ user.name }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -198,7 +205,7 @@ const emit = defineEmits<{
 
 const isSubmitting = ref(false)
 const showAccountDialog = ref(false)
-const searchQuery = ref('')
+const searchAccountName = ref('')
 const searchAccounts = ref<IAccount[]>([])
 
 const displayCount = ref(5)
@@ -245,14 +252,25 @@ const showAddAccountDialog = () => {
 
 const closeAddAccountDialog = () => {
   showAccountDialog.value = false
-  searchQuery.value = ''
+  searchAccountName.value = ''
   searchAccounts.value = []
 }
 
 //查询可关联人员
 const searchUsers = async () => {
-  const resp = await searchAccountsPageInterface({})
-  searchAccounts.value = resp.list
+  const resp = await searchAccountsPageInterface({
+    fuzzyName: searchAccountName.value,
+  })
+  if (resp.list !== undefined) {
+    // 过滤掉已经存在的人员
+    searchAccounts.value = resp.list.filter(user =>
+        !props.bucket.list.some(existingAccount =>
+            existingAccount.accountId === user.accountId
+        )
+    )
+  } else {
+    searchAccounts.value = []
+  }
 }
 
 //选择人员进行关联
@@ -681,6 +699,7 @@ input:focus, textarea:focus {
   cursor: pointer;
   transition: background 0.3s;
   border-bottom: 1px solid #eee;
+  gap: 1rem;
 }
 
 .user-item span {
