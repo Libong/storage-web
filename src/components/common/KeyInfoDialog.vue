@@ -1,10 +1,7 @@
 <template>
-  <div class="key-info-dialog" @click.stop>
+  <div class="key-info-dialog" :style="{ top: offsetY + 'px', left: offsetX + 'px' }" @click.stop>
     <div class="dialog-header">
       <h3>密钥信息</h3>
-      <button class="close-btn" @click="closeDialog">
-        <i class="fas fa-times"></i>
-      </button>
     </div>
     <div class="dialog-content">
       <div>
@@ -26,14 +23,14 @@ const props = defineProps<{
   accessKey: string;
   accessSecret: string;
   closeDialog: () => void;
+  offsetX: number;
+  offsetY: number;
 }>();
 </script>
 
 <style scoped>
 .key-info-dialog {
   position: absolute; /* 绝对定位 */
-  top: 10%; /* 距离顶部10% */
-  right: 10%; /* 距离右侧10% */
   background: #fff;
   border-radius: 0.5rem;
   padding: 1rem;
@@ -50,14 +47,6 @@ const props = defineProps<{
 .dialog-header h3 {
   margin: 0;
   color: #333;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  color: #999;
-  cursor: pointer;
 }
 
 .dialog-content {

@@ -56,52 +56,68 @@
             <div class="form-item account-section">
               <label>关联人员权限</label>
               <div class="account-list">
-                <div v-for="(account) in displayAccounts"
+                <div v-for="(account, index) in displayAccounts"
                      :key="account.accountId"
                      class="account-item">
-                  <div class="account-info">
-                    <div v-if="account.avatar" class="avatar">
-                      <img :alt="account.accountName" :src="account.avatar">
-                    </div>
-                    <div v-else class="avatar avatar-default">
-                      {{ getInitials(account.accountName) }}
-                    </div>
-                    <span class="account-name">{{ account.accountName }}</span>
-                  </div>
-                  <div class="account-actions">
-                    <div class="access-mode-group">
-                      <button
-                          :class="['access-btn', { active: account.accessMode === 1 }]"
-                          title="只读权限"
-                          type="button"
-                          @click="account.accessMode = 1">
-                        <i class="fas fa-eye"></i>
-                      </button>
-                      <button
-                          :class="['access-btn', { active: account.accessMode === 2 }]"
-                          title="只写权限"
-                          type="button"
-                          @click="account.accessMode = 2">
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      <button
-                          :class="['access-btn', { active: account.accessMode === 3 }]"
-                          title="读写权限"
-                          type="button"
-                          @click="account.accessMode = 3">
-                        <i class="fas fa-user-shield"></i>
+                  <!--                  <div class="account-item-inner">-->
+                  <div class="account-item-up">
+                    <div class="account-info">
+                      <div v-if="account.avatar" class="avatar">
+                        <img :alt="account.accountName" :src="account.avatar">
+                      </div>
+                      <div v-else class="avatar avatar-default">
+                        {{ getInitials(account.accountName) }}
+                      </div>
+                      <span class="account-name">{{ account.accountName }}</span>
+                      <button :class="['access-btn', { active: account.showKey}]" title="查看密钥" type="button"
+                              @click.stop="toggleKeyVisibility(account)">
+                        <i class="fas fa-key"></i>
                       </button>
                     </div>
-                    <button class="btn-icon" title="查看密钥" type="button"
-                            @click.stop="showKeyInfo(account.accessKey, account.accessSecret)">
-                      <i class="fas fa-key"></i>
-                    </button>
-                    <button class="btn-remove"
-                            title="移除"
-                            type="button"
-                            @click="confirmRemoveAccount(account)">
-                      <i class="fas fa-times"></i>
-                    </button>
+                    <div class="account-actions">
+                      <div class="account-actions-inner">
+                        <div class="access-mode-group">
+                          <button
+                              :class="['access-btn', { active: account.accessMode === 1 }]"
+                              title="只读权限"
+                              type="button"
+                              @click="account.accessMode = 1">
+                            <i class="fas fa-eye"></i>
+                          </button>
+                          <button
+                              :class="['access-btn', { active: account.accessMode === 2 }]"
+                              title="只写权限"
+                              type="button"
+                              @click="account.accessMode = 2">
+                            <i class="fas fa-edit"></i>
+                          </button>
+                          <button
+                              :class="['access-btn', { active: account.accessMode === 3 }]"
+                              title="读写权限"
+                              type="button"
+                              @click="account.accessMode = 3">
+                            <i class="fas fa-user-shield"></i>
+                          </button>
+                        </div>
+                        <div class="access-info">
+                          <div class="access-info-key">
+                            <span>Access Key：</span>
+                            <span>{{ account.accessKey }}</span>
+                          </div>
+                          <div class="access-info-secret">
+                            <span>Access Secret：</span>
+                            <span>{{ account.accessSecret }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button class="btn-remove"
+                              title="移除"
+                              type="button"
+                              @click="confirmRemoveAccount(account)">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                    <!--                    </div>-->
                   </div>
                 </div>
               </div>
@@ -194,6 +210,8 @@
         :accessKey="currentAccessKey"
         :accessSecret="currentAccessSecret"
         :closeDialog="closeKeyInfoDialog"
+        :offsetX="keyDialogOffsetX"
+        :offsetY="keyDialogOffsetY"
     />
   </div>
 </template>
@@ -329,23 +347,31 @@ const getInitials = (name: string): string => {
 const showKeyDialog = ref(false)
 const currentAccessKey = ref('')
 const currentAccessSecret = ref('')
+const keyDialogOffsetX = ref(0)
+const keyDialogOffsetY = ref(0)
 
-const showKeyInfo = (accessKey: string, accessSecret: string) => {
-  if (accessKey != undefined) {
-    currentAccessKey.value = accessKey
+const toggleKeyVisibility = (account) => {
+  account.showKey = !account.showKey; // 切换显示状态
+  if (account.showKey) {
+    currentAccessKey.value = account.accessKey;
+    currentAccessSecret.value = account.accessSecret;
+    // showKeyDialog.value = true;
+
+    //计算弹窗偏移量
+    // const buttonRect = (event.target as HTMLElement).getBoundingClientRect();
+    // keyDialogOffsetX.value = buttonRect.right + 10; // 右侧偏移10px
+    // keyDialogOffsetY.value = buttonRect.top; // 与按钮顶部对齐
+  } else {
+    // closeKeyInfoDialog(); // 隐藏弹窗
   }
-  if (accessSecret != undefined) {
-    currentAccessSecret.value = accessSecret
-  }
-  showKeyDialog.value = true
-}
+};
 
 const closeKeyInfoDialog = () => {
-  showKeyDialog.value = false
-}
+  showKeyDialog.value = false;
+};
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 /* 对话框基础样式 */
 .dialog-overlay {
   position: fixed;
@@ -570,12 +596,70 @@ input:focus, textarea:focus {
 
 .account-item {
   display: flex;
+  flex-direction: column;
+  margin-top: 5px;
+  //perspective: 1000px;
+  width: 100%;
+  height: 50px;
+}
+
+//.account-item-inner {
+//  width: 100%;
+//  height: 100%;
+//  position: relative;
+//  transform-style: preserve-3d;
+//  transition: transform 0.999s;
+//}
+
+.account-item-up {
+  width: 100%;
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.8rem;
   background: #f5f5f5;
+  padding: 0.8rem;
   border-radius: 0.5rem;
+  //backface-visibility: hidden;
+  //transform: rotateX(180deg);
 }
+
+//.account-item:hover .account-item-inner {
+//  transform: rotateX(180deg);
+//}
+
+//.account-item-down {
+//  width: 100%;
+//  position: absolute;
+//  display: flex;
+//  justify-content: space-between;
+//  align-items: center;
+//  background: #f5f5f5;
+//  padding: 0.8rem;
+//  border-radius: 0.5rem;
+//  backface-visibility: hidden;
+//  transform: rotateX(0deg);
+//}
+
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+//@keyframes fadeIn {
+//  from {
+//    opacity: 0;
+//    transform: translateY(-10px);
+//  }
+//  to {
+//    opacity: 1;
+//    transform: translateY(0);
+//  }
+//}
 
 .account-info {
   display: flex;
@@ -615,14 +699,51 @@ input:focus, textarea:focus {
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  perspective: 1000px;
+  width: 80%;
+  height: 100%;
+}
+
+.account-actions-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.999s;
+}
+
+.account-actions:hover .account-actions-inner {
+  transform: rotateX(180deg);
 }
 
 .access-mode-group {
+  width: 100%;
+  position: absolute;
   display: flex;
   background: #f0f0f0;
   padding: 2px;
   border-radius: 6px;
   gap: 2px;
+  backface-visibility: hidden;
+  transform: rotateX(180deg);
+}
+
+.access-info {
+  width: 100%;
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.5rem;
+  backface-visibility: hidden;
+  transform: rotateX(0deg);
+
+  &-key, &-secret {
+    display: flex;
+  }
+
+  span {
+    font-size: 10px;
+  }
 }
 
 .access-btn {
