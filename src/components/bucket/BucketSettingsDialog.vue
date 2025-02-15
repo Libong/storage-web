@@ -56,7 +56,7 @@
             <div class="form-item account-section">
               <label>关联人员权限</label>
               <div class="account-list">
-                <div v-for="(account, index) in displayAccounts"
+                <div v-for="(account) in displayAccounts"
                      :key="account.accountId"
                      class="account-item">
                   <!--                  <div class="account-item-inner">-->
@@ -69,12 +69,14 @@
                         {{ getInitials(account.accountName) }}
                       </div>
                       <span class="account-name">{{ account.accountName }}</span>
-                      <button :class="['access-btn', { active: account.showKey}]" title="查看密钥" type="button"
-                              @click.stop="toggleKeyVisibility(account)">
-                        <i class="fas fa-key"></i>
-                      </button>
                     </div>
                     <div class="account-actions">
+                      <button
+                          :class="['access-btn', { active: displayAccountShowKeyMap.get(account.accountId) }]"
+                          title="查看密钥" type="button"
+                          @click.stop="toggleAccountKey(account)">
+                        <i class="fas fa-key"></i>
+                      </button>
                       <div class="account-actions-inner">
                         <div class="access-mode-group">
                           <button
@@ -204,15 +206,6 @@
         type="danger"
         @confirm="handleRemoveConfirm"
     />
-
-    <KeyInfoDialog
-        v-if="showKeyDialog"
-        :accessKey="currentAccessKey"
-        :accessSecret="currentAccessSecret"
-        :closeDialog="closeKeyInfoDialog"
-        :offsetX="keyDialogOffsetX"
-        :offsetY="keyDialogOffsetY"
-    />
   </div>
 </template>
 
@@ -221,7 +214,6 @@ import {computed, ref} from 'vue'
 import {BucketAccessPolicy, IBucketAccountDetail, IBucketByIdResp} from "@/api/proto/bucketInterface.ts";
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import {IAccount, searchAccountsPageInterface} from "@/api/proto/accountInterface.ts";
-import KeyInfoDialog from '@/components/common/KeyInfoDialog.vue';
 
 const props = defineProps<{
   visible: boolean
@@ -240,6 +232,7 @@ const searchAccounts = ref<IAccount[]>([])
 
 const displayCount = ref(5)
 const showAll = ref(false)
+const displayAccountShowKeyMap = ref<Map<string, boolean>>(new Map())
 
 const displayAccounts = computed(() => {
   if (showAll.value) {
@@ -256,6 +249,9 @@ const remainingCount = computed(() => {
   return props.bucket.list.length - displayCount.value
 })
 
+const toggleAccountKey = (account: IBucketAccountDetail) => {
+  displayAccountShowKeyMap.value.set(account.accountId, !displayAccountShowKeyMap.value.get(account.accountId))
+}
 const loadMore = () => {
   displayCount.value += 5
 }
@@ -343,32 +339,6 @@ const removeAccount = (accountId: string) => {
 const getInitials = (name: string): string => {
   return name ? name.charAt(0).toUpperCase() : '?'
 }
-
-const showKeyDialog = ref(false)
-const currentAccessKey = ref('')
-const currentAccessSecret = ref('')
-const keyDialogOffsetX = ref(0)
-const keyDialogOffsetY = ref(0)
-
-const toggleKeyVisibility = (account) => {
-  account.showKey = !account.showKey; // 切换显示状态
-  if (account.showKey) {
-    currentAccessKey.value = account.accessKey;
-    currentAccessSecret.value = account.accessSecret;
-    // showKeyDialog.value = true;
-
-    //计算弹窗偏移量
-    // const buttonRect = (event.target as HTMLElement).getBoundingClientRect();
-    // keyDialogOffsetX.value = buttonRect.right + 10; // 右侧偏移10px
-    // keyDialogOffsetY.value = buttonRect.top; // 与按钮顶部对齐
-  } else {
-    // closeKeyInfoDialog(); // 隐藏弹窗
-  }
-};
-
-const closeKeyInfoDialog = () => {
-  showKeyDialog.value = false;
-};
 </script>
 
 <style lang="scss" scoped>
@@ -700,7 +670,7 @@ input:focus, textarea:focus {
   align-items: center;
   gap: 0.8rem;
   perspective: 1000px;
-  width: 80%;
+  width: 70%;
   height: 100%;
 }
 
@@ -725,7 +695,7 @@ input:focus, textarea:focus {
   border-radius: 6px;
   gap: 2px;
   backface-visibility: hidden;
-  transform: rotateX(180deg);
+  transform: rotateX(0deg);
 }
 
 .access-info {
@@ -735,7 +705,7 @@ input:focus, textarea:focus {
   flex-direction: column;
   padding: 0 0.5rem;
   backface-visibility: hidden;
-  transform: rotateX(0deg);
+  transform: rotateX(180deg);
 
   &-key, &-secret {
     display: flex;
