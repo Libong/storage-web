@@ -59,7 +59,6 @@
                 <div v-for="(account) in displayAccounts"
                      :key="account.accountId"
                      class="account-item">
-                  <!--                  <div class="account-item-inner">-->
                   <div class="account-item-up">
                     <div class="account-info">
                       <div v-if="account.avatar" class="avatar">
@@ -71,13 +70,17 @@
                       <span class="account-name">{{ account.accountName }}</span>
                     </div>
                     <div class="account-actions">
-                      <button
-                          :class="['access-btn', { active: displayAccountShowKeyMap.get(account.accountId) }]"
-                          title="查看密钥" type="button"
-                          @click.stop="toggleAccountKey(account)">
-                        <i class="fas fa-key"></i>
-                      </button>
-                      <div class="account-actions-inner">
+                      <div class="access-info-btn">
+                        <button
+                            :class="['access-btn', { active:displayAccountShowKeyMap.get(account.accountId)  }]"
+                            style="width: 100%"
+                            title="查看密钥" type="button"
+                            @click.stop="toggleAccountKey(account)">
+                          <i class="fas fa-key"></i>
+                        </button>
+                      </div>
+                      <div :class="{ flipped: displayAccountShowKeyMap.get(account.accountId) }"
+                           class="account-actions-inner">
                         <div class="access-mode-group">
                           <button
                               :class="['access-btn', { active: account.accessMode === 1 }]"
@@ -103,12 +106,10 @@
                         </div>
                         <div class="access-info">
                           <div class="access-info-key">
-                            <span>Access Key：</span>
-                            <span>{{ account.accessKey }}</span>
+                            <span>Access Key：{{ account.accessKey }}</span>
                           </div>
                           <div class="access-info-secret">
-                            <span>Access Secret：</span>
-                            <span>{{ account.accessSecret }}</span>
+                            <span>Access Secret：{{ account.accessSecret }}</span>
                           </div>
                         </div>
                       </div>
@@ -119,7 +120,6 @@
                         <i class="fas fa-times"></i>
                       </button>
                     </div>
-                    <!--                    </div>-->
                   </div>
                 </div>
               </div>
@@ -235,6 +235,7 @@ const showAll = ref(false)
 const displayAccountShowKeyMap = ref<Map<string, boolean>>(new Map())
 
 const displayAccounts = computed(() => {
+  console.log(props.bucket.list)
   if (showAll.value) {
     return props.bucket.list
   }
@@ -674,7 +675,15 @@ input:focus, textarea:focus {
   height: 100%;
 }
 
+.access-info-btn {
+  display: flex;
+  //background: #f0f0f0;
+  padding: 2px;
+}
+
 .account-actions-inner {
+  display: flex;
+  align-items: center;
   width: 100%;
   height: 100%;
   position: relative;
@@ -682,12 +691,15 @@ input:focus, textarea:focus {
   transition: transform 0.999s;
 }
 
-.account-actions:hover .account-actions-inner {
+//.account-actions:hover .account-actions-inner {
+//  transform: rotateX(180deg);
+//}
+.account-actions-inner.flipped {
   transform: rotateX(180deg);
 }
 
 .access-mode-group {
-  width: 100%;
+  width: 70%;
   position: absolute;
   display: flex;
   background: #f0f0f0;
@@ -703,7 +715,6 @@ input:focus, textarea:focus {
   position: absolute;
   display: flex;
   flex-direction: column;
-  padding: 0 0.5rem;
   backface-visibility: hidden;
   transform: rotateX(180deg);
 
@@ -727,6 +738,7 @@ input:focus, textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 33%;
 }
 
 .access-btn:hover {
@@ -742,20 +754,17 @@ input:focus, textarea:focus {
 
 .btn-remove {
   width: 28px;
-  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: #f0f0f0;
   border: none;
   color: #999;
   cursor: pointer;
   transition: all 0.3s;
+  background: none;
 }
 
 .btn-remove:hover {
-  background: rgba(241, 6, 6, 0.75);
   color: #a82a2a;
 }
 
