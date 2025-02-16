@@ -106,9 +106,15 @@
                         </div>
                         <div class="access-info">
                           <div class="access-info-key">
+                            <button class="copy-icon" type="button" @click.stop="copyToClipboard(account.accessKey)">
+                              <i class="fa fa-clone"></i>
+                            </button>
                             <span>Access Key：{{ account.accessKey }}</span>
                           </div>
                           <div class="access-info-secret">
+                            <button class="copy-icon" type="button" @click.stop="copyToClipboard(account.accessSecret)">
+                              <i class="fa fa-clone"></i>
+                            </button>
                             <span>Access Secret：{{ account.accessSecret }}</span>
                           </div>
                         </div>
@@ -339,6 +345,15 @@ const removeAccount = (accountId: string) => {
 // 获取名字的首字母
 const getInitials = (name: string): string => {
   return name ? name.charAt(0).toUpperCase() : '?'
+}
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text).then(() => {
+    console.log('复制成功:', text);
+    // 这里可以添加提示用户复制成功的逻辑
+  }).catch(err => {
+    console.error('复制失败:', err);
+  });
 }
 </script>
 
@@ -711,7 +726,7 @@ input:focus, textarea:focus {
 }
 
 .access-info {
-  width: 100%;
+  width: 110%;
   position: absolute;
   display: flex;
   flex-direction: column;
@@ -879,6 +894,18 @@ input:focus, textarea:focus {
 }
 
 .btn-icon:hover {
+  color: var(--primary-color);
+}
+
+.copy-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-light);
+  margin-right: 5px; /* 添加右边距 */
+}
+
+.copy-icon:hover {
   color: var(--primary-color);
 }
 </style> 
